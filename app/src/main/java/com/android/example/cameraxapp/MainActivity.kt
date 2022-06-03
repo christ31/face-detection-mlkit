@@ -27,7 +27,9 @@ import androidx.core.content.ContextCompat
 import androidx.camera.core.*
 import androidx.camera.lifecycle.ProcessCameraProvider
 import androidx.camera.core.Camera
+import androidx.camera.core.impl.utils.ContextUtil
 import androidx.camera.view.PreviewView
+import androidx.core.graphics.toRect
 import androidx.core.graphics.toRectF
 import androidx.lifecycle.LifecycleOwner
 import com.android.example.cameraxapp.databinding.ActivityMainBinding
@@ -35,11 +37,13 @@ import com.google.android.material.dialog.MaterialAlertDialogBuilder
 import com.google.mlkit.vision.common.InputImage
 import com.google.mlkit.vision.face.FaceDetection
 import com.google.mlkit.vision.face.FaceDetectorOptions.*
+import org.tensorflow.lite.DataType
 import org.tensorflow.lite.Interpreter
 import org.tensorflow.lite.nnapi.NnApiDelegate
 import org.tensorflow.lite.support.common.FileUtil
 import org.tensorflow.lite.support.common.ops.NormalizeOp
 import org.tensorflow.lite.support.image.ImageProcessor
+import org.tensorflow.lite.support.image.TensorImage
 import org.tensorflow.lite.support.image.ops.ResizeOp
 import org.tensorflow.lite.support.image.ops.ResizeWithCropOrPadOp
 import org.tensorflow.lite.support.image.ops.Rot90Op
@@ -55,40 +59,7 @@ class MainActivity : AppCompatActivity() {
   private lateinit var cameraExecutor: ExecutorService
   private lateinit var camera: Camera
   private lateinit var GFD  : GoogleFaceDetector
-
-  // https://www.tensorflow.org/lite/android/quickstart
-  /** Initialize var for the settings used in TF */
-  private lateinit var bitmapBuffer: Bitmap
-  private var imageRotationDegrees: Int = 0
-
-  private val tflite by lazy {
-    Interpreter(
-      FileUtil.loadMappedFile(this, MODEL_PATH),
-      Interpreter.Options().addDelegate(nnApiDelegate))
-  }
-
-  private val nnApiDelegate by lazy  {
-    NnApiDelegate()
-  }
-
-  private val tfInputSize by lazy {
-    val inputIndex = 0
-    val inputShape = tflite.getInputTensor(inputIndex).shape()
-    Size(inputShape[2], inputShape[1]) // Order of axis is: {1, height, width, 3}
-  }
-
-  private val tfImageProcessor by lazy {
-    val cropSize = minOf(bitmapBuffer.width, bitmapBuffer.height)
-    ImageProcessor.Builder()
-      .add(ResizeWithCropOrPadOp(cropSize, cropSize))
-      .add(
-        ResizeOp(
-        tfInputSize.height, tfInputSize.width, ResizeOp.ResizeMethod.NEAREST_NEIGHBOR)
-      )
-      .add(Rot90Op(-imageRotationDegrees / 90))
-      .add(NormalizeOp(0f, 1f))
-      .build()
-  }
+  private lateinit var ITF : ImageAnalyzerTF
 
   override fun onCreate(savedInstanceState: Bundle?) {
     super.onCreate(savedInstanceState)
@@ -122,8 +93,9 @@ class MainActivity : AppCompatActivity() {
 
     // Mirror viewFinder by setting the implementationMode to COMPATIBLE to force PreviewView
     // ...to use TextureView
-    viewFinder.implementationMode = PreviewView.ImplementationMode.COMPATIBLE
-    viewFinder.scaleX = -1F
+    /** Only flip if camera front is used, otherwise don't */
+//    viewFinder.implementationMode = PreviewView.ImplementationMode.COMPATIBLE
+//    viewFinder.scaleX = -1F
 
     cameraExecutor = Executors.newSingleThreadExecutor()
   }
@@ -188,9 +160,25 @@ class MainActivity : AppCompatActivity() {
         }
 
       // Select front camera as a default
-      val cameraSelector = CameraSelector.DEFAULT_FRONT_CAMERA
+      val cameraSelector = CameraSelector.DEFAULT_BACK_CAMERA
+      val viewFinder: PreviewView = viewBinding.viewFinder
+      // If camera is front, then mirror the viewbinder
+      if (cameraSelector == CameraSelector.DEFAULT_FRONT_CAMERA){
+        viewFinder.implementationMode = PreviewView.ImplementationMode.COMPATIBLE
+        viewFinder.scaleX = -1F
+      }
 
       /** Create ImageAnalysisTF */
+
+      ITF = ImageAnalyzerTF(this, faceBounds)
+      val imageFrameAnalyzerTF = ImageAnalysis.Builder()
+        .setTargetAspectRatio(AspectRatio.RATIO_4_3)
+        .setBackpressureStrategy(ImageAnalysis.STRATEGY_KEEP_ONLY_LATEST)
+        .setOutputImageFormat(ImageAnalysis.OUTPUT_IMAGE_FORMAT_RGBA_8888)
+        .build()
+        .also {
+          it.setAnalyzer(cameraExecutor, ITF)
+        }
 
       try {
         // Unbind use cases before rebinding. Check if something still binding in cameraProvider
@@ -198,7 +186,7 @@ class MainActivity : AppCompatActivity() {
 
         // Bind use cases to camera
         camera = cameraProvider.bindToLifecycle(
-          this as LifecycleOwner, cameraSelector, preview, imageCapture, imageFrameAnalysis
+          this as LifecycleOwner, cameraSelector, preview, imageCapture, imageFrameAnalyzerTF
           // Now we have 3 use case for the camera: preview, imageCapture, imageFAnalyzer
         )
 
@@ -306,11 +294,6 @@ class MainActivity : AppCompatActivity() {
           add(Manifest.permission.WRITE_EXTERNAL_STORAGE)
         }
       }.toTypedArray()
-
-    // Define the settings for the model used in TF
-    private const val ACCURACY_THRESHOLD = 0.5f
-    private const val MODEL_PATH = "coco_ssd_mobilenet_v1_1.0_quant.tflite"
-    private const val LABELS_PATH = "coco_ssd_mobilenet_v1_1.0_labels.txt"
   }
 }
 
@@ -381,9 +364,134 @@ private class GoogleFaceDetector(
   }
 }
 
+/** Tensorflow image analysis goes here */
+private class ImageAnalyzerTF(val context: Context, private var faceBoundOverlay : FaceBoundOverlay) : ImageAnalysis.Analyzer {
+  // https://www.tensorflow.org/lite/android/quickstart
+  /** Initialize var for the settings used in TF */
+  private lateinit var bitmapBuffer: Bitmap
+  private var imageRotationDegrees: Int = 0
+  private val tfImageBuffer = TensorImage(DataType.UINT8)
+
+  private val tflite by lazy {
+    Interpreter(
+      FileUtil.loadMappedFile(context, ImageAnalyzerTF.MODEL_PATH),
+      Interpreter.Options().addDelegate(nnApiDelegate))
+  }
+
+  private val nnApiDelegate by lazy  {
+    NnApiDelegate()
+  }
+
+  private val tfInputSize by lazy {
+    val inputIndex = 0
+    val inputShape = tflite.getInputTensor(inputIndex).shape()
+    Size(inputShape[2], inputShape[1]) // Order of axis is: {1, height, width, 3}
+  }
+
+  private val tfImageProcessor by lazy {
+    val cropSize = minOf(bitmapBuffer.width, bitmapBuffer.height)
+    ImageProcessor.Builder()
+      .add(ResizeWithCropOrPadOp(cropSize, cropSize))
+      .add(
+        ResizeOp(
+          tfInputSize.height, tfInputSize.width, ResizeOp.ResizeMethod.NEAREST_NEIGHBOR)
+      )
+      .add(Rot90Op(-imageRotationDegrees / 90))
+      .add(NormalizeOp(0f, 1f))
+      .build()
+  }
+
+  private val detector by lazy {
+    ObjectDetectionHelper(
+      tflite,
+      FileUtil.loadLabels(context, LABELS_PATH)
+    )
+  }
+
+  override fun analyze(image: ImageProxy) {
+    if (!::bitmapBuffer.isInitialized) {
+      // The image rotation and RGB image buffer are initialized only once
+      // the analyzer has started running
+      imageRotationDegrees = image.imageInfo.rotationDegrees
+      bitmapBuffer = Bitmap.createBitmap(
+        image.width, image.height, Bitmap.Config.ARGB_8888)
+    }
+
+    // Log.d("DEBUG", bitmapBuffer.config.toString())
+
+    // Copy out RGB bits to our shared buffer
+    image.use {
+
+      bitmapBuffer.copyPixelsFromBuffer(image.planes[0].buffer)
+    }
+
+    // Process the image in Tensorflow
+    val tfImage =  tfImageProcessor.process(tfImageBuffer.apply { load(bitmapBuffer) })
+
+    // Perform the object detection for the current frame
+    val predictions = detector.predict(tfImage)
+    Log.d("TFLite", predictions.get(0).toString())
+
+    // Show bounding box from predictions
+    val mappingObject = listOf<RectF>(predictions.get(0).location)
+    Log.d("TFLite BoundingBox", mappingObject.get(0).toString())
+    faceBoundOverlay.drawFaceBounds(mappingObject)
+  }
+
+  companion object{
+    // Define the settings for the model used in TF
+    private const val ACCURACY_THRESHOLD = 0.5f
+    private const val MODEL_PATH = "coco_ssd_mobilenet_v1_1.0_quant.tflite"
+    private const val LABELS_PATH = "coco_ssd_mobilenet_v1_1.0_labels.txt"
+  }
+}
+
+class ObjectDetectionHelper(private val tflite: Interpreter, private val labels: List<String>) {
+  /** Abstraction object that wraps a prediction output in an easy to parse way */
+  data class ObjectPrediction(val location: RectF, val label: String, val score: Float)
+
+  private val locations = arrayOf(Array(OBJECT_COUNT) { FloatArray(4) })
+  private val labelIndices =  arrayOf(FloatArray(OBJECT_COUNT))
+  private val scores =  arrayOf(FloatArray(OBJECT_COUNT))
+
+  private val outputBuffer = mapOf(
+    0 to locations,
+    1 to labelIndices,
+    2 to scores,
+    3 to FloatArray(1)
+  )
+
+  val predictions get() = (0 until OBJECT_COUNT).map {
+    ObjectPrediction(
+
+      // The locations are an array of [0, 1] floats for [top, left, bottom, right]
+      location = locations[0][it].let {
+        RectF(it[1], it[0], it[3], it[2])
+      },
+
+      // SSD Mobilenet V1 Model assumes class 0 is background class
+      // in label file and class labels start from 1 to number_of_classes + 1,
+      // while outputClasses correspond to class index from 0 to number_of_classes
+      label = labels[1 + labelIndices[0][it].toInt()],
+
+      // Score is a single value of [0, 1]
+      score = scores[0][it]
+    )
+  }
+
+  fun predict(image: TensorImage): List<ObjectPrediction> {
+    tflite.runForMultipleInputsOutputs(arrayOf(image.buffer), outputBuffer)
+    return predictions
+  }
+
+  companion object {
+    const val OBJECT_COUNT = 10
+  }
+}
+
+
 // Add an inner class to implement ImageAnalysis.Analyzer interface for luminosity of the image
 private class LuminosityAnalyzer(private val listener: LumaListener) : ImageAnalysis.Analyzer {
-
   private fun ByteBuffer.toByteArray(): ByteArray {
     rewind()    // Rewind the buffer to zero
     val data = ByteArray(remaining())
