@@ -150,6 +150,10 @@ class MainActivity : AppCompatActivity() {
       val widthFinder = viewBinding.viewFinder.width
       val heightFinder = viewBinding.viewFinder.height
 
+      Log.d(TAG, "Resolution Width:  ${widthFinder.toString()}")
+      Log.d(TAG, "Resolution Height:  ${heightFinder.toString()}")
+
+
       val imageFrameAnalysis = ImageAnalysis.Builder()
         .setTargetResolution(Size( widthFinder, heightFinder ) )
 //                .setTargetAspectRatio(AspectRatio.RATIO_4_3)
@@ -162,7 +166,7 @@ class MainActivity : AppCompatActivity() {
       // Select front camera as a default
       val cameraSelector = CameraSelector.DEFAULT_BACK_CAMERA
       val viewFinder: PreviewView = viewBinding.viewFinder
-      // If camera is front, then mirror the viewbinder
+      // If camera is front, then mirror the viewFinder
       if (cameraSelector == CameraSelector.DEFAULT_FRONT_CAMERA){
         viewFinder.implementationMode = PreviewView.ImplementationMode.COMPATIBLE
         viewFinder.scaleX = -1F
@@ -172,7 +176,7 @@ class MainActivity : AppCompatActivity() {
 
       ITF = ImageAnalyzerTF(this, faceBounds)
       val imageFrameAnalyzerTF = ImageAnalysis.Builder()
-        .setTargetAspectRatio(AspectRatio.RATIO_4_3)
+        .setTargetResolution(Size( widthFinder, heightFinder ) )
         .setBackpressureStrategy(ImageAnalysis.STRATEGY_KEEP_ONLY_LATEST)
         .setOutputImageFormat(ImageAnalysis.OUTPUT_IMAGE_FORMAT_RGBA_8888)
         .build()
@@ -421,7 +425,6 @@ private class ImageAnalyzerTF(val context: Context, private var faceBoundOverlay
 
     // Copy out RGB bits to our shared buffer
     image.use {
-
       bitmapBuffer.copyPixelsFromBuffer(image.planes[0].buffer)
     }
 
@@ -529,14 +532,25 @@ class FaceBoundOverlay constructor(context: Context?, attributeSet: AttributeSet
     super.onDraw(canvas)
     // Pass it a list of RectF (rectBounds)
     faceBounds.forEach {
-      val temp = it.left
-      it.left = it.right
-      it.right = temp
+//      val temp = it.left
+//      it.left = it.right
+//      it.right = temp
+
+      // Surface resolution 1440x1080
+      val height = height
+      val width = width
+
+      it.left = it.left * width
+      it.right = it.right * width
+      it.top = it.top * height
+      it.bottom = it.bottom * height
 
       canvas.drawRoundRect(it, 16F, 16F, customPaint)
 
-      Log.d(TAG, "Draw the bounding box of : ${it.toString()}")
+      Log.d(TAG, "Draw the bounding box of : ${it.toString()} Surface Res = ${width} x ${height}")
     }
+//    val valuerectF = RectF(20F, 10F, 50F, 50F)
+//    canvas.drawRoundRect(valuerectF, 16F, 16F, customPaint)
   }
 
   fun drawFaceBounds(faceBounds: List<RectF>){
