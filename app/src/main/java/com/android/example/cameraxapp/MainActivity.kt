@@ -8,6 +8,7 @@ import java.util.concurrent.Executors
 import androidx.appcompat.app.AppCompatActivity
 import android.os.Bundle
 import android.Manifest
+import android.R
 import android.annotation.SuppressLint
 import android.content.pm.PackageManager
 import android.util.Log
@@ -18,10 +19,12 @@ import android.provider.MediaStore
 import android.content.ContentValues
 import android.content.Context
 import android.graphics.*
+import android.media.tv.TvContract
 import android.os.Build
 import android.view.View
 import android.view.WindowManager
 import android.widget.Button
+import android.widget.TextView
 import androidx.core.app.ActivityCompat
 import androidx.core.content.ContextCompat
 import androidx.camera.core.*
@@ -52,6 +55,7 @@ import org.tensorflow.lite.support.image.ops.Rot90Op
 // https://stackoverflow.com/questions/55953052/kotlin-void-vs-unit-vs-nothing#:~:text=The%20Unit%20type%20is%20what,(lowercase%20v)%20in%20Java.
 
 typealias LumaListener = (Double) -> Unit
+typealias LabelListener = (String) -> Unit
 
 class MainActivity : AppCompatActivity() {
   private lateinit var viewBinding: ActivityMainBinding
@@ -121,7 +125,6 @@ class MainActivity : AppCompatActivity() {
     cameraProviderFuture.addListener({
       // Used to bind the lifecycle of cameras to the lifecycle owner
       val cameraProvider: ProcessCameraProvider = cameraProviderFuture.get()
-      GFD = GoogleFaceDetector(faceBounds)
 
       // Preview
       val preview = Preview.Builder()
@@ -140,7 +143,6 @@ class MainActivity : AppCompatActivity() {
         .build()
         .also {
           it.setAnalyzer(cameraExecutor, LuminosityAnalyzer { luma ->
-//                        Log.d(TAG, "Average luminiosity: $luma")
             viewBinding.videoCaptureButton.text = luma.toString()
           })
         }
@@ -160,7 +162,7 @@ class MainActivity : AppCompatActivity() {
         .setBackpressureStrategy(ImageAnalysis.STRATEGY_KEEP_ONLY_LATEST)
         .build()
         .also {
-          it.setAnalyzer(cameraExecutor, GFD)
+          it.setAnalyzer(cameraExecutor, GoogleFaceDetector(faceBounds))
         }
 
       // Select front camera as a default
@@ -173,15 +175,17 @@ class MainActivity : AppCompatActivity() {
       }
 
       /** Create ImageAnalysisTF */
-
-      ITF = ImageAnalyzerTF(this, faceBounds)
       val imageFrameAnalyzerTF = ImageAnalysis.Builder()
         .setTargetResolution(Size( widthFinder, heightFinder ) )
         .setBackpressureStrategy(ImageAnalysis.STRATEGY_KEEP_ONLY_LATEST)
         .setOutputImageFormat(ImageAnalysis.OUTPUT_IMAGE_FORMAT_RGBA_8888)
         .build()
         .also {
-          it.setAnalyzer(cameraExecutor, ITF)
+          it.setAnalyzer(cameraExecutor, ImageAnalyzerTF(this, faceBounds){
+//            Changing text in textview produce error --> Only the original thread that created a view hierarchy can touch its views.
+//            viewBinding.tvLabel.text = it
+            viewBinding.videoCaptureButton.text = it
+          })
         }
 
       try {
@@ -369,7 +373,7 @@ private class GoogleFaceDetector(
 }
 
 /** Tensorflow image analysis goes here */
-private class ImageAnalyzerTF(val context: Context, private var faceBoundOverlay : FaceBoundOverlay) : ImageAnalysis.Analyzer {
+private class ImageAnalyzerTF(val context: Context, private var faceBoundOverlay : FaceBoundOverlay, private val listener:LabelListener) : ImageAnalysis.Analyzer {
   // https://www.tensorflow.org/lite/android/quickstart
   /** Initialize var for the settings used in TF */
   private lateinit var bitmapBuffer: Bitmap
@@ -378,7 +382,7 @@ private class ImageAnalyzerTF(val context: Context, private var faceBoundOverlay
 
   private val tflite by lazy {
     Interpreter(
-      FileUtil.loadMappedFile(context, ImageAnalyzerTF.MODEL_PATH),
+      FileUtil.loadMappedFile(context, MODEL_PATH),
       Interpreter.Options().addDelegate(nnApiDelegate))
   }
 
@@ -435,8 +439,10 @@ private class ImageAnalyzerTF(val context: Context, private var faceBoundOverlay
     val predictions = detector.predict(tfImage)
     Log.d("TFLite", predictions.get(0).toString())
 
+    listener(predictions.get(0).label)
+
     // Show bounding box from predictions
-    val mappingObject = listOf<RectF>(predictions.get(0).location)
+    val mappingObject = listOf(predictions.get(0).location)
     Log.d("TFLite BoundingBox", mappingObject.get(0).toString())
     faceBoundOverlay.drawFaceBounds(mappingObject)
   }
