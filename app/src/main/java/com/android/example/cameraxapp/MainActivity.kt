@@ -439,7 +439,19 @@ private class ImageAnalyzerTF(val context: Context, private var faceBoundOverlay
     val predictions = detector.predict(tfImage)
     Log.d("TFLite", predictions.get(0).toString())
 
-    listener(predictions.get(0).label)
+    var label_predict = "Unidentified"
+    var highest_score = 0F
+    var score = 0F
+    for (i in 0..predictions.lastIndex){
+      score = predictions.get(i).score
+      if(predictions.get(i).score > ACCURACY_THRESHOLD){
+        if(score > highest_score){
+          highest_score = score
+          label_predict = predictions.get(i).label
+        }
+      }
+    }
+    listener(label_predict)
 
     // Show bounding box from predictions
     val mappingObject = listOf(predictions.get(0).location)
