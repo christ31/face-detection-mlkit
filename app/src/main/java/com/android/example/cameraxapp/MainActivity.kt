@@ -8,7 +8,6 @@ import java.util.concurrent.Executors
 import androidx.appcompat.app.AppCompatActivity
 import android.os.Bundle
 import android.Manifest
-import android.R
 import android.annotation.SuppressLint
 import android.content.pm.PackageManager
 import android.util.Log
@@ -19,20 +18,16 @@ import android.provider.MediaStore
 import android.content.ContentValues
 import android.content.Context
 import android.graphics.*
-import android.media.tv.TvContract
 import android.os.Build
 import android.view.View
 import android.view.WindowManager
 import android.widget.Button
-import android.widget.TextView
 import androidx.core.app.ActivityCompat
 import androidx.core.content.ContextCompat
 import androidx.camera.core.*
 import androidx.camera.lifecycle.ProcessCameraProvider
 import androidx.camera.core.Camera
-import androidx.camera.core.impl.utils.ContextUtil
 import androidx.camera.view.PreviewView
-import androidx.core.graphics.toRect
 import androidx.core.graphics.toRectF
 import androidx.lifecycle.LifecycleOwner
 import com.android.example.cameraxapp.databinding.ActivityMainBinding
@@ -80,7 +75,7 @@ class MainActivity : AppCompatActivity() {
 
     // For Button
     captureButton.setOnClickListener{takePhoto()}
-//    popupbutton.setOnClickListener{showPopUp()}
+    // popupbutton.setOnClickListener{showPopUp()}
     popupbutton.setOnClickListener { showPopUpMaterial() }
 
     // Request camera permissions
@@ -95,11 +90,12 @@ class MainActivity : AppCompatActivity() {
     // https://developer.android.com/training/camerax/preview
     viewFinder.scaleType = PreviewView.ScaleType.FIT_CENTER
 
-    // Mirror viewFinder by setting the implementationMode to COMPATIBLE to force PreviewView
-    // ...to use TextureView
+    // Mirror viewFinder by setting the implementationMode to COMPATIBLE to force PreviewView..
+    // ..to use TextureView
+
     /** Only flip if camera front is used, otherwise don't */
-//    viewFinder.implementationMode = PreviewView.ImplementationMode.COMPATIBLE
-//    viewFinder.scaleX = -1F
+    // viewFinder.implementationMode = PreviewView.ImplementationMode.COMPATIBLE
+    // viewFinder.scaleX = -1F
 
     cameraExecutor = Executors.newSingleThreadExecutor()
   }
@@ -111,18 +107,19 @@ class MainActivity : AppCompatActivity() {
       .setTitle("Title Pop Up Material")
       .setMessage("Ini test pesan")
       .setNeutralButton("Cancel"){ dialog, which ->}
-      .setPositiveButton("Cancel"){ dialog, which ->}
+      .setPositiveButton("Ok"){ dialog, which ->}
       .show()
   }
 
   private fun startCamera(){
-    // ProcessCameraProvider use to bind camera lifecycle to any LifeCycleOwner within
-    // an application's process
+    // ProcessCameraProvider use to bind camera lifecycle to any LifeCycleOwner within..
+    // ..an application's process
     val cameraProviderFuture = ProcessCameraProvider.getInstance(this)
     val faceBounds = viewBinding.faceBoundsOverlay
 
     // cameraProviderFuture.addListener(Runnable{}, ContextCompat.getMainExecutor(this))
     cameraProviderFuture.addListener({
+
       // Used to bind the lifecycle of cameras to the lifecycle owner
       val cameraProvider: ProcessCameraProvider = cameraProviderFuture.get()
 
@@ -152,13 +149,12 @@ class MainActivity : AppCompatActivity() {
       val widthFinder = viewBinding.viewFinder.width
       val heightFinder = viewBinding.viewFinder.height
 
-      Log.d(TAG, "Resolution Width:  ${widthFinder.toString()}")
-      Log.d(TAG, "Resolution Height:  ${heightFinder.toString()}")
-
+      // Log.d(TAG, "Resolution Width:  ${widthFinder.toString()}")
+      // Log.d(TAG, "Resolution Height:  ${heightFinder.toString()}")
 
       val imageFrameAnalysis = ImageAnalysis.Builder()
         .setTargetResolution(Size( widthFinder, heightFinder ) )
-//                .setTargetAspectRatio(AspectRatio.RATIO_4_3)
+        // .setTargetAspectRatio(AspectRatio.RATIO_4_3)
         .setBackpressureStrategy(ImageAnalysis.STRATEGY_KEEP_ONLY_LATEST)
         .build()
         .also {
@@ -168,6 +164,7 @@ class MainActivity : AppCompatActivity() {
       // Select front camera as a default
       val cameraSelector = CameraSelector.DEFAULT_BACK_CAMERA
       val viewFinder: PreviewView = viewBinding.viewFinder
+
       // If camera is front, then mirror the viewFinder
       if (cameraSelector == CameraSelector.DEFAULT_FRONT_CAMERA){
         viewFinder.implementationMode = PreviewView.ImplementationMode.COMPATIBLE
@@ -230,7 +227,8 @@ class MainActivity : AppCompatActivity() {
 
   private fun takePhoto() {
     // Get a stable reference of the modifiable image capture use case
-    val imageCapture = imageCapture ?: return // If imageCapture is null,
+    val imageCapture = imageCapture ?: return
+    // If imageCapture is null,
     // then exit out of the function (Elvis Operator)
     // otherwise, return the value of imageCapture
 
@@ -238,6 +236,7 @@ class MainActivity : AppCompatActivity() {
     // Create time stamped name and MediaStore entry.
     val name = SimpleDateFormat(FILENAME_FORMAT, Locale.US)
       .format(System.currentTimeMillis())
+
     val contentValues = ContentValues().apply {
       put(MediaStore.MediaColumns.DISPLAY_NAME, name)
       put(MediaStore.MediaColumns.MIME_TYPE, "image/jpeg")
@@ -305,7 +304,7 @@ class MainActivity : AppCompatActivity() {
   }
 }
 
-/** Create Use Cases that will be used in imageFrameAnalysis that will be used in CameraBindLifecycle */
+/** Create Use Cases that will be used in imageFrameAnalysis */
 // All use cases below
 // https://developers.google.com/ml-kit/vision/face-detection/android
 private class GoogleFaceDetector(
@@ -372,9 +371,14 @@ private class GoogleFaceDetector(
   }
 }
 
+// https://www.tensorflow.org/lite/android/quickstart
 /** Tensorflow image analysis goes here */
-private class ImageAnalyzerTF(val context: Context, private var faceBoundOverlay : FaceBoundOverlay, private val listener:LabelListener) : ImageAnalysis.Analyzer {
-  // https://www.tensorflow.org/lite/android/quickstart
+private class ImageAnalyzerTF(
+  val context: Context,
+  private var faceBoundOverlay : FaceBoundOverlay,
+  private val listener:LabelListener
+  ) : ImageAnalysis.Analyzer
+{
   /** Initialize var for the settings used in TF */
   private lateinit var bitmapBuffer: Bitmap
   private var imageRotationDegrees: Int = 0
@@ -425,8 +429,6 @@ private class ImageAnalyzerTF(val context: Context, private var faceBoundOverlay
         image.width, image.height, Bitmap.Config.ARGB_8888)
     }
 
-    // Log.d("DEBUG", bitmapBuffer.config.toString())
-
     // Copy out RGB bits to our shared buffer
     image.use {
       bitmapBuffer.copyPixelsFromBuffer(image.planes[0].buffer)
@@ -462,6 +464,8 @@ private class ImageAnalyzerTF(val context: Context, private var faceBoundOverlay
   companion object{
     // Define the settings for the model used in TF
     private const val ACCURACY_THRESHOLD = 0.5f
+    // private const val MODEL_PATH = "coco_ssd_mobilenet_v1_1.0_quant.tflite"
+
     private const val MODEL_PATH = "coco_ssd_mobilenet_v1_1.0_quant.tflite"
     private const val LABELS_PATH = "coco_ssd_mobilenet_v1_1.0_labels.txt"
   }
@@ -532,7 +536,6 @@ private class LuminosityAnalyzer(private val listener: LumaListener) : ImageAnal
 
 /** Creating RectOverlay to create a custom view */
 // https://stackoverflow.com/questions/63090795/how-to-draw-on-previewview
-
 class FaceBoundOverlay constructor(context: Context?, attributeSet: AttributeSet?) :
   View(context, attributeSet) {
 
@@ -550,9 +553,9 @@ class FaceBoundOverlay constructor(context: Context?, attributeSet: AttributeSet
     super.onDraw(canvas)
     // Pass it a list of RectF (rectBounds)
     faceBounds.forEach {
-//      val temp = it.left
-//      it.left = it.right
-//      it.right = temp
+      // val temp = it.left
+      // it.left = it.right
+      // it.right = temp
 
       // Surface resolution 1440x1080
       val height = height
@@ -567,8 +570,9 @@ class FaceBoundOverlay constructor(context: Context?, attributeSet: AttributeSet
 
       Log.d(TAG, "Draw the bounding box of : ${it.toString()} Surface Res = ${width} x ${height}")
     }
-//    val valuerectF = RectF(20F, 10F, 50F, 50F)
-//    canvas.drawRoundRect(valuerectF, 16F, 16F, customPaint)
+    // Draw a debug Rect
+    // val valuerectF = RectF(20F, 10F, 50F, 50F)
+    // canvas.drawRoundRect(valuerectF, 16F, 16F, customPaint)
   }
 
   fun drawFaceBounds(faceBounds: List<RectF>){
