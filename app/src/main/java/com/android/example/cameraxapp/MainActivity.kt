@@ -1,33 +1,28 @@
 package com.android.example.cameraxapp
 
-import java.nio.ByteBuffer
-import java.text.SimpleDateFormat
-import java.util.*
-import java.util.concurrent.ExecutorService
-import java.util.concurrent.Executors
-import androidx.appcompat.app.AppCompatActivity
-import android.os.Bundle
 import android.Manifest
 import android.annotation.SuppressLint
-import android.content.pm.PackageManager
-import android.util.Log
-import android.util.AttributeSet
-import android.util.Size
-import android.widget.Toast
-import android.provider.MediaStore
 import android.content.ContentValues
 import android.content.Context
+import android.content.pm.PackageManager
 import android.graphics.*
 import android.os.Build
+import android.os.Bundle
+import android.provider.MediaStore
+import android.util.AttributeSet
+import android.util.Log
+import android.util.Size
 import android.view.View
 import android.view.WindowManager
 import android.widget.Button
+import android.widget.Toast
+import androidx.appcompat.app.AppCompatActivity
+import androidx.camera.core.*
+import androidx.camera.core.Camera
+import androidx.camera.lifecycle.ProcessCameraProvider
+import androidx.camera.view.PreviewView
 import androidx.core.app.ActivityCompat
 import androidx.core.content.ContextCompat
-import androidx.camera.core.*
-import androidx.camera.lifecycle.ProcessCameraProvider
-import androidx.camera.core.Camera
-import androidx.camera.view.PreviewView
 import androidx.core.graphics.toRectF
 import androidx.lifecycle.LifecycleOwner
 import com.android.example.cameraxapp.databinding.ActivityMainBinding
@@ -44,12 +39,13 @@ import org.tensorflow.lite.support.image.ImageProcessor
 import org.tensorflow.lite.support.image.TensorImage
 import org.tensorflow.lite.support.image.ops.ResizeOp
 import org.tensorflow.lite.support.image.ops.ResizeWithCropOrPadOp
-import org.tensorflow.lite.support.image.ops.Rot90Op
+import java.io.IOException
+import java.nio.ByteBuffer
+import java.text.SimpleDateFormat
+import java.util.*
+import java.util.concurrent.ExecutorService
+import java.util.concurrent.Executors
 
-// What is unit?
-// https://stackoverflow.com/questions/55953052/kotlin-void-vs-unit-vs-nothing#:~:text=The%20Unit%20type%20is%20what,(lowercase%20v)%20in%20Java.
-
-typealias LumaListener = (Double) -> Unit
 typealias LabelListener = (String) -> Unit
 
 class MainActivity : AppCompatActivity() {
@@ -57,8 +53,6 @@ class MainActivity : AppCompatActivity() {
   private var imageCapture: ImageCapture? = null
   private lateinit var cameraExecutor: ExecutorService
   private lateinit var camera: Camera
-  private lateinit var GFD  : GoogleFaceDetector
-  private lateinit var ITF : ImageAnalyzerTF
 
   override fun onCreate(savedInstanceState: Bundle?) {
     super.onCreate(savedInstanceState)
@@ -75,7 +69,6 @@ class MainActivity : AppCompatActivity() {
 
     // For Button
     captureButton.setOnClickListener{takePhoto()}
-    // popupbutton.setOnClickListener{showPopUp()}
     popupbutton.setOnClickListener { showPopUpMaterial() }
 
     // Request camera permissions
@@ -87,7 +80,6 @@ class MainActivity : AppCompatActivity() {
       )
     }
 
-    // https://developer.android.com/training/camerax/preview
     viewFinder.scaleType = PreviewView.ScaleType.FIT_CENTER
 
     // Mirror viewFinder by setting the implementationMode to COMPATIBLE to force PreviewView..
@@ -100,16 +92,7 @@ class MainActivity : AppCompatActivity() {
     cameraExecutor = Executors.newSingleThreadExecutor()
   }
 
-  /** Testing Stuff */
-  private fun showPopUpMaterial() {
-    val context = this
-    MaterialAlertDialogBuilder(context)
-      .setTitle("Title Pop Up Material")
-      .setMessage("Ini test pesan")
-      .setNeutralButton("Cancel"){ dialog, which ->}
-      .setPositiveButton("Ok"){ dialog, which ->}
-      .show()
-  }
+
 
   private fun startCamera(){
     // ProcessCameraProvider use to bind camera lifecycle to any LifeCycleOwner within..
@@ -129,37 +112,16 @@ class MainActivity : AppCompatActivity() {
         .build()
         .also {
           it.setSurfaceProvider(viewBinding.viewFinder.surfaceProvider) // Bind to preview layout
-          Log.d(TAG, "Resolution ===> ${it.resolutionInfo.toString()}")
         }
 
       // Build the imageCapture
       imageCapture = ImageCapture.Builder().build()
 
-      // Build the imageAnalyzer
-      val LumaimageAnalyzer = ImageAnalysis.Builder()
-        .build()
-        .also {
-          it.setAnalyzer(cameraExecutor, LuminosityAnalyzer { luma ->
-            viewBinding.videoCaptureButton.text = luma.toString()
-          })
-        }
-      Log.d(TAG, "Resolution : ${preview.resolutionInfo.toString()}")
-
       // Build the faceDetection Preview
       val widthFinder = viewBinding.viewFinder.width
       val heightFinder = viewBinding.viewFinder.height
 
-      // Log.d(TAG, "Resolution Width:  ${widthFinder.toString()}")
-      // Log.d(TAG, "Resolution Height:  ${heightFinder.toString()}")
-
-      val imageFrameAnalysis = ImageAnalysis.Builder()
-        .setTargetResolution(Size( widthFinder, heightFinder ) )
-        // .setTargetAspectRatio(AspectRatio.RATIO_4_3)
-        .setBackpressureStrategy(ImageAnalysis.STRATEGY_KEEP_ONLY_LATEST)
-        .build()
-        .also {
-          it.setAnalyzer(cameraExecutor, GoogleFaceDetector(faceBounds))
-        }
+      Log.d(TAG, "Resolution viewFinder: $widthFinder x $heightFinder")
 
       // Select front camera as a default
       val cameraSelector = CameraSelector.DEFAULT_BACK_CAMERA
@@ -171,16 +133,13 @@ class MainActivity : AppCompatActivity() {
         viewFinder.scaleX = -1F
       }
 
-      /** Create ImageAnalysisTF */
-      val imageFrameAnalyzerTF = ImageAnalysis.Builder()
+      /** Create Google ML Kit ImageFrameAnalysis */
+      val imageFrameAnalyzerML = ImageAnalysis.Builder()
         .setTargetResolution(Size( widthFinder, heightFinder ) )
         .setBackpressureStrategy(ImageAnalysis.STRATEGY_KEEP_ONLY_LATEST)
-        .setOutputImageFormat(ImageAnalysis.OUTPUT_IMAGE_FORMAT_RGBA_8888)
         .build()
         .also {
-          it.setAnalyzer(cameraExecutor, ImageAnalyzerTF(this, faceBounds){
-//            Changing text in textview produce error --> Only the original thread that created a view hierarchy can touch its views.
-//            viewBinding.tvLabel.text = it
+          it.setAnalyzer(cameraExecutor, GoogleFaceDetector(this, faceBounds){
             viewBinding.videoCaptureButton.text = it
           })
         }
@@ -191,8 +150,8 @@ class MainActivity : AppCompatActivity() {
 
         // Bind use cases to camera
         camera = cameraProvider.bindToLifecycle(
-          this as LifecycleOwner, cameraSelector, preview, imageCapture, imageFrameAnalyzerTF
-          // Now we have 3 use case for the camera: preview, imageCapture, imageFAnalyzer
+          this as LifecycleOwner, cameraSelector, preview, imageCapture, imageFrameAnalyzerML
+          // Now we have 3 use case for the camera: preview, imageCapture, imageFrameAnalyzerML
         )
 
         // https://developer.android.com/training/camerax/configuration#camera-output
@@ -242,7 +201,6 @@ class MainActivity : AppCompatActivity() {
       put(MediaStore.MediaColumns.MIME_TYPE, "image/jpeg")
       if (Build.VERSION.SDK_INT > Build.VERSION_CODES.P) {
         put(MediaStore.Images.Media.RELATIVE_PATH, "Pictures/CameraX-Image")
-        // https://developer.android.com/reference/android/provider/MediaStore.MediaColumns#RELATIVE_PATH
       }
     }
 
@@ -286,6 +244,17 @@ class MainActivity : AppCompatActivity() {
     cameraExecutor.shutdown()
   }
 
+  /** Testing Stuff */
+  private fun showPopUpMaterial() {
+    val context = this
+    MaterialAlertDialogBuilder(context)
+      .setTitle("Title Pop Up Material")
+      .setMessage("Ini test pesan")
+      .setNeutralButton("Cancel"){ dialog, which ->}
+      .setPositiveButton("Ok"){ dialog, which ->}
+      .show()
+  }
+
   // Companion Object -> An object declaration inside a class
   companion object {
     private const val TAG = "CameraXApp"
@@ -305,13 +274,13 @@ class MainActivity : AppCompatActivity() {
 }
 
 /** Create Use Cases that will be used in imageFrameAnalysis */
-// All use cases below
-// https://developers.google.com/ml-kit/vision/face-detection/android
-private class GoogleFaceDetector(
-  private var faceBoundOverlay : FaceBoundOverlay
+private class GoogleFaceDetector( context: Context,
+                                  private var faceBoundOverlay : FaceBoundOverlay,
+                                  listener: LabelListener
 ) : ImageAnalysis.Analyzer {
 
   private val TAG = "GoogleFaceDetector"
+  val model = ImageAnalyzerTF(context, listener)
 
   // STEP 1 : Configure the face detector
   // High-accuracy landmark detection and face classification
@@ -336,7 +305,6 @@ private class GoogleFaceDetector(
     val mediaImage = imageProxy.image
     if (mediaImage != null) {
       val image = InputImage.fromMediaImage(mediaImage, imageProxy.imageInfo.rotationDegrees)
-      // Pass image to an ML Kit Vision API
 
       // STEP 3 : Get an instance of FaceDetector
       val detector = FaceDetection.getClient(realTimeOpts)
@@ -359,7 +327,22 @@ private class GoogleFaceDetector(
           */
           // Map faces and send it to faceBoundOverlay to draw Bounding Box
           val mappingFace = faces.map { it.boundingBox.toRectF() }
-          faceBoundOverlay.drawFaceBounds(mappingFace)
+          Log.d(TAG, "face = ${faces.size}")
+
+          // Send GoogleML's imageProxy to FaceNet
+          /** Call FaceNet Model from here */
+          if(faces.isNotEmpty()){
+            val imageProxyToBitmap = BitmapUtils.getBitmap(imageProxy)
+            val cropBitmap = BitmapUtils.cropBitmap(imageProxyToBitmap!!, faces[0].boundingBox)
+
+            // Save the image to see the final result of the Bitmap
+            // BitmapUtils.saveBitmap(context, imageProxyToBitmap, "FullBitmap.png")
+            // BitmapUtils.saveBitmap(context, cropBitmap, "CroppedBitmap.png")
+
+            model.setFaceBound(faces[0].boundingBox)
+            model.analyze(imageProxy)
+            faceBoundOverlay.drawFaceBounds(mappingFace)
+          }
         }
         .addOnFailureListener { e -> // Task failed with an exception
           Log.e(TAG, e.message.toString())
@@ -371,79 +354,112 @@ private class GoogleFaceDetector(
   }
 }
 
-// https://www.tensorflow.org/lite/android/quickstart
+/** --- How TensorFlow Lite Works in Android ---
+1. Create TF interpreter => Used to load settings like optimization and model used
+2. Create TF ImageProcessor => Used to process input before predicting.
+   Cropping, Flipping, Resizing, Rotation, Optimization, etc
+3. Create Detector => To predict the image with the provided label
+4. Run Detector
+---------------------------------------------- */
+
 /** Tensorflow image analysis goes here */
-private class ImageAnalyzerTF(
-  val context: Context,
-  private var faceBoundOverlay : FaceBoundOverlay,
-  private val listener:LabelListener
-  ) : ImageAnalysis.Analyzer
-{
-  /** Initialize var for the settings used in TF */
+class ImageAnalyzerTF( context: Context,
+                       private val listener: LabelListener
+                       ) {
+  /** Initialize var/val for the settings used in TF */
   private lateinit var bitmapBuffer: Bitmap
   private var imageRotationDegrees: Int = 0
   private val tfImageBuffer = TensorImage(DataType.UINT8)
+  private var faceBounds = Rect()
 
-  private val tflite by lazy {
-    Interpreter(
-      FileUtil.loadMappedFile(context, MODEL_PATH),
-      Interpreter.Options().addDelegate(nnApiDelegate))
-  }
+  private var tfLiteInterp: Interpreter
+  private var tfImageProcessor: ImageProcessor
 
+  // Boost performance using the available GPU, DSP, and or NPU => Android NNAPI frameworks
   private val nnApiDelegate by lazy  {
     NnApiDelegate()
   }
 
-  private val tfInputSize by lazy {
-    val inputIndex = 0
-    val inputShape = tflite.getInputTensor(inputIndex).shape()
-    Size(inputShape[2], inputShape[1]) // Order of axis is: {1, height, width, 3}
-  }
-
-  private val tfImageProcessor by lazy {
-    val cropSize = minOf(bitmapBuffer.width, bitmapBuffer.height)
-    ImageProcessor.Builder()
-      .add(ResizeWithCropOrPadOp(cropSize, cropSize))
-      .add(
-        ResizeOp(
-          tfInputSize.height, tfInputSize.width, ResizeOp.ResizeMethod.NEAREST_NEIGHBOR)
+  init {
+    // Setting up interpreter
+    tfLiteInterp =
+      Interpreter(
+        FileUtil.loadMappedFile(context, MODEL_PATH),
+        Interpreter.Options().addDelegate(nnApiDelegate)
       )
-      .add(Rot90Op(-imageRotationDegrees / 90))
-      .add(NormalizeOp(0f, 1f))
-      .build()
+
+    // val detector: ObjectDetectionHelper()
+    /**
+    val detector by lazy {
+      ObjectDetectionHelper(
+        tfliteInterp,
+        FileUtil.loadLabels(context, LABELS_PATH)
+      )
+    }
+    */
+
+    // Get inputSize that used by the TFLite Model. In this case, FaceNet using 160x160 while..
+    // ..coco_ssd_mobilenet_v1_1.0_quant using 300x300
+    val inputIndex = 0
+    val inputShape = tfLiteInterp.getInputTensor(inputIndex).shape()
+    val tfInputSize = Size(inputShape[2], inputShape[1]) // Order of axis is: {1, height, width, 3}
+
+    // Create ImageProcessor to process the image before predicting
+    tfImageProcessor =
+      ImageProcessor.Builder()
+        .add(
+          ResizeOp(
+            tfInputSize.height, tfInputSize.width, ResizeOp.ResizeMethod.NEAREST_NEIGHBOR)
+        )
+//      .add(Rot90Op(-imageRotationDegrees / 90))
+        .add(NormalizeOp(128f, 128f)) // Default (0, 1) No computation will happen
+        .build()
   }
 
-  private val detector by lazy {
-    ObjectDetectionHelper(
-      tflite,
-      FileUtil.loadLabels(context, LABELS_PATH)
-    )
+  fun setFaceBound(FaceRect: Rect){
+    faceBounds = FaceRect
+    Log.d(TAG, "Facebounds is set as $faceBounds")
   }
 
-  override fun analyze(image: ImageProxy) {
+  private fun bitmapToBuffer(image: Bitmap): ByteBuffer {
+    return tfImageProcessor.process(TensorImage.fromBitmap(image)).buffer
+  }
+
+  fun analyze(image: ImageProxy) {
     if (!::bitmapBuffer.isInitialized) {
-      // The image rotation and RGB image buffer are initialized only once
-      // the analyzer has started running
-      imageRotationDegrees = image.imageInfo.rotationDegrees
-      bitmapBuffer = Bitmap.createBitmap(
-        image.width, image.height, Bitmap.Config.ARGB_8888)
+      // The image rotation and RGB image buffer are initialized only once..
+      // ..the analyzer has started running
+      // imageRotationDegrees = image.imageInfo.rotationDegrees
+      // bitmapBuffer = Bitmap.createBitmap(image.width, image.height, Bitmap.Config.ARGB_8888)
+
+      // Copy out RGB bits to our shared buffer
+      image.use {
+        bitmapBuffer = BitmapUtils.getBitmap(it)!!
+//      BitmapUtils.saveBitmap(context, bitmapBuffer, "BitmapTF.png")
+
+        bitmapBuffer = BitmapUtils.cropBitmap(bitmapBuffer, faceBounds)
+//      BitmapUtils.saveBitmap(context, bitmapBuffer, "BitmapCropTF.png")
+      }
     }
 
-    // Copy out RGB bits to our shared buffer
-    image.use {
-      bitmapBuffer.copyPixelsFromBuffer(image.planes[0].buffer)
+    // predictions should be embeddings to FloatArray(128)
+    // outputBuffer should be an array of FloatArray
+    val tfImageBuffer = bitmapToBuffer(bitmapBuffer)
+    val outputBuffer = Array(1) { FloatArray(128)}
+    tfLiteInterp.run(tfImageBuffer, outputBuffer)
+    Log.d(TAG, "TFLite Prediction is: " + outputBuffer[0].size)
+
+    for (i in 0..outputBuffer[0].size-1){
+      Log.d(TAG, "TFLite outputBuffer ArrayFloat: ${outputBuffer[0].get(i)}")
     }
 
-    // Process the image in Tensorflow
-    val tfImage =  tfImageProcessor.process(tfImageBuffer.apply { load(bitmapBuffer) })
-
-    // Perform the object detection for the current frame
-    val predictions = detector.predict(tfImage)
-    Log.d("TFLite", predictions.get(0).toString())
+//    val predictions = detector.predict(tfImage)
+//    Log.d(TAG, "TFLite Prediction is : " + predictions.toString())
 
     var label_predict = "Unidentified"
     var highest_score = 0F
     var score = 0F
+    /**
     for (i in 0..predictions.lastIndex){
       score = predictions.get(i).score
       if(predictions.get(i).score > ACCURACY_THRESHOLD){
@@ -454,38 +470,36 @@ private class ImageAnalyzerTF(
       }
     }
     listener(label_predict)
-
+    */
     // Show bounding box from predictions
-    val mappingObject = listOf(predictions.get(0).location)
-    Log.d("TFLite BoundingBox", mappingObject.get(0).toString())
-    faceBoundOverlay.drawFaceBounds(mappingObject)
+//    val mappingObject = listOf(predictions.get(0).location)
+//    Log.d("TFLite BoundingBox", mappingObject.get(0).toString())
+//    faceBoundOverlay.drawFaceBounds(mappingObject)
   }
 
   companion object{
     // Define the settings for the model used in TF
+    private const val TAG = "TFLite Class"
     private const val ACCURACY_THRESHOLD = 0.5f
-    // private const val MODEL_PATH = "coco_ssd_mobilenet_v1_1.0_quant.tflite"
-
-    private const val MODEL_PATH = "coco_ssd_mobilenet_v1_1.0_quant.tflite"
-    private const val LABELS_PATH = "coco_ssd_mobilenet_v1_1.0_labels.txt"
+//    private const val MODEL_PATH = "coco_ssd_mobilenet_v1_1.0_quant.tflite"
+    private const val MODEL_PATH = "facenet2.tflite"
   }
 }
 
+/** ObjectDetectionHelper class used to predict the images */
 class ObjectDetectionHelper(private val tflite: Interpreter, private val labels: List<String>) {
   /** Abstraction object that wraps a prediction output in an easy to parse way */
   data class ObjectPrediction(val location: RectF, val label: String, val score: Float)
+
 
   private val locations = arrayOf(Array(OBJECT_COUNT) { FloatArray(4) })
   private val labelIndices =  arrayOf(FloatArray(OBJECT_COUNT))
   private val scores =  arrayOf(FloatArray(OBJECT_COUNT))
 
-  private val outputBuffer = mapOf(
-    0 to locations,
-    1 to labelIndices,
-    2 to scores,
-    3 to FloatArray(1)
-  )
+  private val outputBuffer = Array(1) { FloatArray(128)}
 
+  // Run Prediction to all 10 Object Count and then map it to ObjectPrediction()
+  // When this val is called, get() will take all outputBuffer
   val predictions get() = (0 until OBJECT_COUNT).map {
     ObjectPrediction(
 
@@ -504,41 +518,33 @@ class ObjectDetectionHelper(private val tflite: Interpreter, private val labels:
     )
   }
 
-  fun predict(image: TensorImage): List<ObjectPrediction> {
-    tflite.runForMultipleInputsOutputs(arrayOf(image.buffer), outputBuffer)
-    return predictions
+  // https://www.tensorflow.org/lite/api_docs/java/org/tensorflow/lite/Interpreter
+  // So, FaceNet have 1 image input and 1 array output (128 byte embed)
+  fun predict(image: TensorImage): Array<FloatArray> {
+    val t1 = System.currentTimeMillis()
+    Log.e(TAG, "InputImageBuffer : ${image.buffer}")
+
+    try{
+      tflite.run(image.buffer, outputBuffer) // [Stuck here]
+    } catch (e: IOException){
+      Log.e(TAG, e.toString())
+    } finally {
+      Log.d(TAG, "tflite.run success")
+    }
+    Log.i(TAG, "FaceNet Inference Speed in ms : ${System.currentTimeMillis() - t1}" )
+    return outputBuffer
   }
 
   companion object {
     const val OBJECT_COUNT = 10
-  }
-}
-
-
-// Add an inner class to implement ImageAnalysis.Analyzer interface for luminosity of the image
-private class LuminosityAnalyzer(private val listener: LumaListener) : ImageAnalysis.Analyzer {
-  private fun ByteBuffer.toByteArray(): ByteArray {
-    rewind()    // Rewind the buffer to zero
-    val data = ByteArray(remaining())
-    get(data)   // Copy the buffer into a byte array
-    return data // Return the byte array
-  }
-
-  override fun analyze(image: ImageProxy) {
-    val buffer = image.planes[0].buffer
-    val data = buffer.toByteArray()
-    val pixels = data.map { it.toInt() and 0xFF }
-    val luma = pixels.average()
-    listener(luma)
-    image.close()
+    const val TAG = "ObjectDetection Class"
   }
 }
 
 /** Creating RectOverlay to create a custom view */
-// https://stackoverflow.com/questions/63090795/how-to-draw-on-previewview
-class FaceBoundOverlay constructor(context: Context?, attributeSet: AttributeSet?) :
-  View(context, attributeSet) {
-
+class FaceBoundOverlay constructor(context: Context?,
+                                   attributeSet: AttributeSet?
+) : View(context, attributeSet) {
   val TAG = "FaceBoundOverlay"
   val faceBounds: MutableList<RectF> = mutableListOf()
 
@@ -553,24 +559,21 @@ class FaceBoundOverlay constructor(context: Context?, attributeSet: AttributeSet
     super.onDraw(canvas)
     // Pass it a list of RectF (rectBounds)
     faceBounds.forEach {
-      // val temp = it.left
-      // it.left = it.right
-      // it.right = temp
-
-      // Surface resolution 1440x1080
       val height = height
       val width = width
 
-      it.left = it.left * width
-      it.right = it.right * width
-      it.top = it.top * height
-      it.bottom = it.bottom * height
-
+      if(it.width() < 1){
+        it.left = it.left * width
+        it.right = it.right * width
+        it.top = it.top * height
+        it.bottom = it.bottom * height
+      }
       canvas.drawRoundRect(it, 16F, 16F, customPaint)
 
       Log.d(TAG, "Draw the bounding box of : ${it.toString()} Surface Res = ${width} x ${height}")
     }
-    // Draw a debug Rect
+
+    /** Draw a debug Rect */
     // val valuerectF = RectF(20F, 10F, 50F, 50F)
     // canvas.drawRoundRect(valuerectF, 16F, 16F, customPaint)
   }
@@ -584,4 +587,3 @@ class FaceBoundOverlay constructor(context: Context?, attributeSet: AttributeSet
     // Method onDraw will be called with new data.
   }
 }
-data class Prediction(var bbox : Rect, var label : String)
