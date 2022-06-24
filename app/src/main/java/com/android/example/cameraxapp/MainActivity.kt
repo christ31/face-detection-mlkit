@@ -15,6 +15,7 @@ import android.util.Size
 import android.view.View
 import android.view.WindowManager
 import android.widget.Button
+import android.widget.EditText
 import android.widget.Toast
 import androidx.appcompat.app.AppCompatActivity
 import androidx.camera.core.*
@@ -25,12 +26,13 @@ import androidx.core.app.ActivityCompat
 import androidx.core.content.ContextCompat
 import androidx.core.graphics.toRectF
 import androidx.lifecycle.LifecycleOwner
+import androidx.viewbinding.ViewBinding
 import com.android.example.cameraxapp.databinding.ActivityMainBinding
 import com.google.android.material.dialog.MaterialAlertDialogBuilder
 import com.google.mlkit.vision.common.InputImage
 import com.google.mlkit.vision.face.FaceDetection
 import com.google.mlkit.vision.face.FaceDetectorOptions.*
-import org.tensorflow.lite.DataType
+import org.checkerframework.checker.units.qual.A
 import org.tensorflow.lite.Interpreter
 import org.tensorflow.lite.nnapi.NnApiDelegate
 import org.tensorflow.lite.support.common.FileUtil
@@ -38,13 +40,15 @@ import org.tensorflow.lite.support.common.ops.NormalizeOp
 import org.tensorflow.lite.support.image.ImageProcessor
 import org.tensorflow.lite.support.image.TensorImage
 import org.tensorflow.lite.support.image.ops.ResizeOp
-import org.tensorflow.lite.support.image.ops.ResizeWithCropOrPadOp
-import java.io.IOException
+import org.tensorflow.lite.support.image.ops.Rot90Op
+import java.io.*
 import java.nio.ByteBuffer
 import java.text.SimpleDateFormat
 import java.util.*
 import java.util.concurrent.ExecutorService
 import java.util.concurrent.Executors
+import kotlin.collections.HashMap
+import kotlin.math.sqrt
 
 typealias LabelListener = (String) -> Unit
 
@@ -53,6 +57,7 @@ class MainActivity : AppCompatActivity() {
   private var imageCapture: ImageCapture? = null
   private lateinit var cameraExecutor: ExecutorService
   private lateinit var camera: Camera
+  private var registerState: Boolean = false
 
   override fun onCreate(savedInstanceState: Bundle?) {
     super.onCreate(savedInstanceState)
@@ -64,12 +69,15 @@ class MainActivity : AppCompatActivity() {
 
     // Initialize all binding variable
     val viewFinder: PreviewView = viewBinding.viewFinder
-    val popupbutton: Button = viewBinding.popupButton
+    val popupButton: Button = viewBinding.popupButton
     val captureButton: Button = viewBinding.imageCaptureButton
+    val kotakNama: EditText = viewBinding.editTextNama
+    val faceCapture: Button = viewBinding.captureButton
 
     // For Button
     captureButton.setOnClickListener{takePhoto()}
-    popupbutton.setOnClickListener { showPopUpMaterial() }
+    popupButton.setOnClickListener{showPopUpMaterial()}
+    faceCapture.setOnClickListener{registerFace()}
 
     // Request camera permissions
     if (allPermissionsGranted()) {
@@ -91,8 +99,6 @@ class MainActivity : AppCompatActivity() {
 
     cameraExecutor = Executors.newSingleThreadExecutor()
   }
-
-
 
   private fun startCamera(){
     // ProcessCameraProvider use to bind camera lifecycle to any LifeCycleOwner within..
@@ -139,7 +145,7 @@ class MainActivity : AppCompatActivity() {
         .setBackpressureStrategy(ImageAnalysis.STRATEGY_KEEP_ONLY_LATEST)
         .build()
         .also {
-          it.setAnalyzer(cameraExecutor, GoogleFaceDetector(this, faceBounds){
+          it.setAnalyzer(cameraExecutor, GoogleFaceDetector(this, faceBounds, viewBinding){
             viewBinding.videoCaptureButton.text = it
           })
         }
@@ -255,6 +261,11 @@ class MainActivity : AppCompatActivity() {
       .show()
   }
 
+  // If button is pressed, send true to TFModel and begin registering faces to DB
+  private fun registerFace(){
+    this.registerState = true
+  }
+
   // Companion Object -> An object declaration inside a class
   companion object {
     private const val TAG = "CameraXApp"
@@ -274,13 +285,14 @@ class MainActivity : AppCompatActivity() {
 }
 
 /** Create Use Cases that will be used in imageFrameAnalysis */
-private class GoogleFaceDetector( context: Context,
+private class GoogleFaceDetector( var context: Context,
                                   private var faceBoundOverlay : FaceBoundOverlay,
-                                  listener: LabelListener
+                                  viewBinding: ActivityMainBinding,
+                                  var listener: LabelListener,
 ) : ImageAnalysis.Analyzer {
 
   private val TAG = "GoogleFaceDetector"
-  val model = ImageAnalyzerTF(context, listener)
+  private val model = TFModel(context, listener, viewBinding)
 
   // STEP 1 : Configure the face detector
   // High-accuracy landmark detection and face classification
@@ -303,6 +315,7 @@ private class GoogleFaceDetector( context: Context,
   @SuppressLint("UnsafeOptInUsageError")
   override fun analyze(imageProxy: ImageProxy) {
     val mediaImage = imageProxy.image
+
     if (mediaImage != null) {
       val image = InputImage.fromMediaImage(mediaImage, imageProxy.imageInfo.rotationDegrees)
 
@@ -325,6 +338,8 @@ private class GoogleFaceDetector( context: Context,
             Log.d(TAG, "Found a face: ${face.toString()}")
           }
           */
+
+          /** For now, we will focus on 1 faces recognition in 1 images */
           // Map faces and send it to faceBoundOverlay to draw Bounding Box
           val mappingFace = faces.map { it.boundingBox.toRectF() }
           Log.d(TAG, "face = ${faces.size}")
@@ -332,22 +347,16 @@ private class GoogleFaceDetector( context: Context,
           // Send GoogleML's imageProxy to FaceNet
           /** Call FaceNet Model from here */
           if(faces.isNotEmpty()){
-            val imageProxyToBitmap = BitmapUtils.getBitmap(imageProxy)
-            val cropBitmap = BitmapUtils.cropBitmap(imageProxyToBitmap!!, faces[0].boundingBox)
-
-            // Save the image to see the final result of the Bitmap
-            // BitmapUtils.saveBitmap(context, imageProxyToBitmap, "FullBitmap.png")
-            // BitmapUtils.saveBitmap(context, cropBitmap, "CroppedBitmap.png")
-
             model.setFaceBound(faces[0].boundingBox)
-            model.analyze(imageProxy)
-            faceBoundOverlay.drawFaceBounds(mappingFace)
+            val detected = model.analyze(imageProxy)
+
+            faceBoundOverlay.drawFaceBounds(mappingFace, detected)
           }
         }
         .addOnFailureListener { e -> // Task failed with an exception
           Log.e(TAG, e.message.toString())
         }
-        .addOnSuccessListener { // IMPORTANT : If success, then close the image proxy
+        .addOnSuccessListener { /** IMPORTANT : If success, then close the image proxy */
           imageProxy.close()
         }
     }
@@ -356,47 +365,41 @@ private class GoogleFaceDetector( context: Context,
 
 /** --- How TensorFlow Lite Works in Android ---
 1. Create TF interpreter => Used to load settings like optimization and model used
-2. Create TF ImageProcessor => Used to process input before predicting.
-   Cropping, Flipping, Resizing, Rotation, Optimization, etc
+2. Create TF ImageProcessor => Used to process input before predicting. Resizing, Rotating, etc
 3. Create Detector => To predict the image with the provided label
 4. Run Detector
----------------------------------------------- */
+------------------------------------------------ */
 
 /** Tensorflow image analysis goes here */
-class ImageAnalyzerTF( context: Context,
-                       private val listener: LabelListener
-                       ) {
+class TFModel(val context: Context,
+                      private val listener: LabelListener,
+                      val viewBinding: ActivityMainBinding
+                      ) {
   /** Initialize var/val for the settings used in TF */
   private lateinit var bitmapBuffer: Bitmap
   private var imageRotationDegrees: Int = 0
-  private val tfImageBuffer = TensorImage(DataType.UINT8)
   private var faceBounds = Rect()
 
   private var tfLiteInterp: Interpreter
   private var tfImageProcessor: ImageProcessor
 
-  // Boost performance using the available GPU, DSP, and or NPU => Android NNAPI frameworks
-  private val nnApiDelegate by lazy  {
-    NnApiDelegate()
-  }
+  // Save personName and Distance in HashMap
+  private var nameDistanceHash: HashMap<String, Array<FloatArray>> = HashMap()
+  private var index: Int = 0
+  private var indexReg: Int = 0
+  private val outputs = Array(5) {FloatArray(128)} // We will store 10 images for 1 person
+  private var normalisasi: HashMap<String, Float> = HashMap()
+  private var registerState = false
+  private var numFaceStored = 5
+
 
   init {
     // Setting up interpreter
     tfLiteInterp =
       Interpreter(
         FileUtil.loadMappedFile(context, MODEL_PATH),
-        Interpreter.Options().addDelegate(nnApiDelegate)
+        Interpreter.Options().addDelegate(NnApiDelegate()) // Boost performance using the available GPU, DSP, and or NPU => Android NNAPI frameworks
       )
-
-    // val detector: ObjectDetectionHelper()
-    /**
-    val detector by lazy {
-      ObjectDetectionHelper(
-        tfliteInterp,
-        FileUtil.loadLabels(context, LABELS_PATH)
-      )
-    }
-    */
 
     // Get inputSize that used by the TFLite Model. In this case, FaceNet using 160x160 while..
     // ..coco_ssd_mobilenet_v1_1.0_quant using 300x300
@@ -411,9 +414,28 @@ class ImageAnalyzerTF( context: Context,
           ResizeOp(
             tfInputSize.height, tfInputSize.width, ResizeOp.ResizeMethod.NEAREST_NEIGHBOR)
         )
-//      .add(Rot90Op(-imageRotationDegrees / 90))
+        .add(Rot90Op(-imageRotationDegrees / 90))
         .add(NormalizeOp(128f, 128f)) // Default (0, 1) No computation will happen
         .build()
+
+    try{
+      nameDistanceHash = loadHashInternal(context, "/FaceEmbeddings.c31")
+    } catch(e:IOException){
+      Log.e(TAG, e.toString())
+    } finally {
+      Log.d(TAG, "File loaded successfully")
+    }
+
+    nameDistanceHash.forEach{ it ->
+      Log.d(TAG, "Kunci ${it.key} = ")
+      it.value.forEach {
+        Log.d(TAG, "128-D Values = ${it[0]}, ${it[1]}, ${it[2]}, ..., ${it[127]}")
+      }
+    }
+
+    viewBinding.captureButton.setOnClickListener {
+      registerState = true
+    }
   }
 
   fun setFaceBound(FaceRect: Rect){
@@ -425,33 +447,52 @@ class ImageAnalyzerTF( context: Context,
     return tfImageProcessor.process(TensorImage.fromBitmap(image)).buffer
   }
 
-  fun analyze(image: ImageProxy) {
-    if (!::bitmapBuffer.isInitialized) {
-      // The image rotation and RGB image buffer are initialized only once..
-      // ..the analyzer has started running
-      // imageRotationDegrees = image.imageInfo.rotationDegrees
-      // bitmapBuffer = Bitmap.createBitmap(image.width, image.height, Bitmap.Config.ARGB_8888)
-
-      // Copy out RGB bits to our shared buffer
-      image.use {
-        bitmapBuffer = BitmapUtils.getBitmap(it)!!
+  fun analyze(image: ImageProxy): Boolean {
+    bitmapBuffer = BitmapUtils.getBitmap(image)!!
 //      BitmapUtils.saveBitmap(context, bitmapBuffer, "BitmapTF.png")
 
-        bitmapBuffer = BitmapUtils.cropBitmap(bitmapBuffer, faceBounds)
+    bitmapBuffer = BitmapUtils.cropBitmap(bitmapBuffer, faceBounds)
 //      BitmapUtils.saveBitmap(context, bitmapBuffer, "BitmapCropTF.png")
-      }
-    }
 
-    // predictions should be embeddings to FloatArray(128)
     // outputBuffer should be an array of FloatArray
-    val tfImageBuffer = bitmapToBuffer(bitmapBuffer)
-    val outputBuffer = Array(1) { FloatArray(128)}
+    // Create an array with 1 size, and fill it with 128 FloatArray
+    // outputBuffer[0] = [128 FloatArray]
+    var tfImageBuffer = bitmapToBuffer(bitmapBuffer)
+    var outputBuffer = Array(1) {FloatArray(128)}
     tfLiteInterp.run(tfImageBuffer, outputBuffer)
-    Log.d(TAG, "TFLite Prediction is: " + outputBuffer[0].size)
+    Log.d(TAG, "TFLite Prediction is: " + outputBuffer.size)
 
-    for (i in 0..outputBuffer[0].size-1){
-      Log.d(TAG, "TFLite outputBuffer ArrayFloat: ${outputBuffer[0].get(i)}")
+    // Save the embed to storage
+    // Only Register if the button is pressed
+    var name = viewBinding.editTextNama.text.toString()
+
+    if(registerState){
+      registerEmbed(outputBuffer, name)
+      registerState = false
     }
+    index += 1;
+
+    // Comparing faces using L2 Norm
+    // Only compare if index is incrementing
+    // L2 Norm = sqrt( SumEach( values^2 ) )
+    if((index+1) % 5 == 0){
+      normalisasi = L2Norm(outputBuffer)
+    }
+
+    // Debug Listener
+//    listener("Index: $index | nameDistance.size: ${nameDistanceHash["Bill Gates"]?.size}")
+    viewBinding.tvView.text = "registerState = ${registerState}"
+
+    var iniLog = "L2 Norm: ${normalisasi.keys} ${normalisasi.values} | Index: $index | Face Registered: ${nameDistanceHash.entries.size} " +
+        "| registerState: ${viewBinding.editTextNama.text} | IndexReg: $indexReg"
+    listener(iniLog)
+
+    return normalisasi.values.isNotEmpty()
+
+//    Log.d(TAG, "INDEXING : $normalisasi")
+//    for (i in 0 until outputBuffer[0].size-1){
+//      Log.d(TAG, "TFLite outputBuffer ArrayFloat: ${outputBuffer[0][i]}")
+//    }
 
 //    val predictions = detector.predict(tfImage)
 //    Log.d(TAG, "TFLite Prediction is : " + predictions.toString())
@@ -477,67 +518,93 @@ class ImageAnalyzerTF( context: Context,
 //    faceBoundOverlay.drawFaceBounds(mappingObject)
   }
 
+  // Create L2Norm to find distances
+  fun L2Norm(data: Array<FloatArray>): HashMap<String, Float>{
+    var distance = Float.MAX_VALUE
+    var distanceT = 0.0F
+    val valueF = data[0]
+    var name = "Unknown"
+    var store: HashMap<String, Float> = HashMap()
+
+    // Loop to all embeds in knownEmbed
+    nameDistanceHash.forEach{
+      Log.d(TAG, "Now comparing it with ${it.key}")
+      // Loop to all values in 128-D embeds, and find L2 Norm on the difference between knownEmbed..
+      // ..and currentEmbed
+      for (i in 0 until valueF.size-1){
+        // Log.d(TAG, "valueF.get(i) - it.value[0][i]: ${valueF.get(i)} - ${it.value[0][i]}")
+
+        val diff = valueF[i] - it.value[0][i]
+        distanceT +=  diff * diff
+      }
+      distanceT = sqrt(distanceT)
+
+      if(distance>distanceT){
+        distance = distanceT
+        name = it.key
+      }
+      Log.d(TAG, "distance: ${distance} | distanceT: ${distanceT} | name: ${name}")
+    }
+    store[name] = distance
+    Log.d(TAG, "distancing is FINISHED>>>>>>>>>>>>>>>>>>>")
+    return store
+  }
+
+  fun saveHashInternal(context: Context, data: HashMap<String, Array<FloatArray>>){
+    try {
+      val fos: FileOutputStream =
+        context.openFileOutput("FaceEmbeddings.c31", Context.MODE_PRIVATE)
+      val oos = ObjectOutputStream(fos)
+      oos.writeObject(data)
+      oos.close()
+    } catch (e: IOException) {
+      e.printStackTrace()
+    }
+  }
+
+  fun loadHashInternal(context: Context, filename:String): HashMap<String, Array<FloatArray>>{
+    var myHashMap: HashMap<String, Array<FloatArray>> = HashMap()
+    try {
+      val fileInputStream = FileInputStream(context.filesDir.toString() + filename)
+      val objectInputStream = ObjectInputStream(fileInputStream)
+      myHashMap = objectInputStream.readObject() as HashMap<String, Array<FloatArray>>
+    } catch (e: IOException) {
+      e.printStackTrace()
+    }
+    return myHashMap
+  }
+
+  fun registerEmbed(outputBuffer: Array<FloatArray>, name: String){
+    val name = name
+
+    // Save embedding faces in hashmap. "Bill Gates" will have multiple embedding in the future,..
+    // ..so we will save it in Array(FloatArray)
+    if(indexReg < numFaceStored){
+      outputs[indexReg] = outputBuffer[0]
+      nameDistanceHash[name] = outputs /** Register the embedding for $name */
+      indexReg += 1
+
+      if(indexReg == numFaceStored){
+        viewBinding.captureButton.text = "Save to DB"
+      }
+    } else if (indexReg == numFaceStored){
+      saveHashInternal(context, nameDistanceHash)
+      nameDistanceHash = loadHashInternal(context, "/FaceEmbeddings.c31")
+      indexReg = 0
+      viewBinding.captureButton.text = "Capture Face"
+      Toast.makeText(context, "$name is saved", Toast.LENGTH_SHORT).show()
+      Log.d(TAG, "Registering output $outputs")
+      Log.d(TAG, "Registering $name successfully")
+    }
+
+  }
+
   companion object{
     // Define the settings for the model used in TF
-    private const val TAG = "TFLite Class"
+    private const val TAG = "TF Class"
     private const val ACCURACY_THRESHOLD = 0.5f
 //    private const val MODEL_PATH = "coco_ssd_mobilenet_v1_1.0_quant.tflite"
-    private const val MODEL_PATH = "facenet2.tflite"
-  }
-}
-
-/** ObjectDetectionHelper class used to predict the images */
-class ObjectDetectionHelper(private val tflite: Interpreter, private val labels: List<String>) {
-  /** Abstraction object that wraps a prediction output in an easy to parse way */
-  data class ObjectPrediction(val location: RectF, val label: String, val score: Float)
-
-
-  private val locations = arrayOf(Array(OBJECT_COUNT) { FloatArray(4) })
-  private val labelIndices =  arrayOf(FloatArray(OBJECT_COUNT))
-  private val scores =  arrayOf(FloatArray(OBJECT_COUNT))
-
-  private val outputBuffer = Array(1) { FloatArray(128)}
-
-  // Run Prediction to all 10 Object Count and then map it to ObjectPrediction()
-  // When this val is called, get() will take all outputBuffer
-  val predictions get() = (0 until OBJECT_COUNT).map {
-    ObjectPrediction(
-
-      // The locations are an array of [0, 1] floats for [top, left, bottom, right]
-      location = locations[0][it].let {
-        RectF(it[1], it[0], it[3], it[2])
-      },
-
-      // SSD Mobilenet V1 Model assumes class 0 is background class
-      // in label file and class labels start from 1 to number_of_classes + 1,
-      // while outputClasses correspond to class index from 0 to number_of_classes
-      label = labels[1 + labelIndices[0][it].toInt()],
-
-      // Score is a single value of [0, 1]
-      score = scores[0][it]
-    )
-  }
-
-  // https://www.tensorflow.org/lite/api_docs/java/org/tensorflow/lite/Interpreter
-  // So, FaceNet have 1 image input and 1 array output (128 byte embed)
-  fun predict(image: TensorImage): Array<FloatArray> {
-    val t1 = System.currentTimeMillis()
-    Log.e(TAG, "InputImageBuffer : ${image.buffer}")
-
-    try{
-      tflite.run(image.buffer, outputBuffer) // [Stuck here]
-    } catch (e: IOException){
-      Log.e(TAG, e.toString())
-    } finally {
-      Log.d(TAG, "tflite.run success")
-    }
-    Log.i(TAG, "FaceNet Inference Speed in ms : ${System.currentTimeMillis() - t1}" )
-    return outputBuffer
-  }
-
-  companion object {
-    const val OBJECT_COUNT = 10
-    const val TAG = "ObjectDetection Class"
+    private const val MODEL_PATH = "facenet.tflite"
   }
 }
 
@@ -547,10 +614,17 @@ class FaceBoundOverlay constructor(context: Context?,
 ) : View(context, attributeSet) {
   val TAG = "FaceBoundOverlay"
   val faceBounds: MutableList<RectF> = mutableListOf()
+  var detected = false
 
-  private val customPaint = Paint().also{
+  private val redPaint = Paint().also{
     it.style = Paint.Style.STROKE
     it.color = Color.RED
+    it.strokeWidth = 10f
+  }
+
+  private val greenPaint = Paint().also{
+    it.style = Paint.Style.STROKE
+    it.color = Color.GREEN
     it.strokeWidth = 10f
   }
 
@@ -568,7 +642,12 @@ class FaceBoundOverlay constructor(context: Context?,
         it.top = it.top * height
         it.bottom = it.bottom * height
       }
-      canvas.drawRoundRect(it, 16F, 16F, customPaint)
+      if(detected){
+        canvas.drawRoundRect(it, 16F, 16F, greenPaint)
+      } else {
+        canvas.drawRoundRect(it, 16F, 16F, redPaint)
+
+      }
 
       Log.d(TAG, "Draw the bounding box of : ${it.toString()} Surface Res = ${width} x ${height}")
     }
@@ -578,9 +657,10 @@ class FaceBoundOverlay constructor(context: Context?,
     // canvas.drawRoundRect(valuerectF, 16F, 16F, customPaint)
   }
 
-  fun drawFaceBounds(faceBounds: List<RectF>){
+  fun drawFaceBounds(faceBounds: List<RectF>, detected: Boolean){
     this.faceBounds.clear()
     this.faceBounds.addAll(faceBounds)
+    this.detected = detected
 
     invalidate()
     // Invalid to re-draw the canvas

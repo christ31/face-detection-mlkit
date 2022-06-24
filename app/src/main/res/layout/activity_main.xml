@@ -7,6 +7,25 @@
     android:layout_height="match_parent"
     tools:context=".MainActivity">
 
+    <Button
+        android:id="@+id/capture_button"
+        android:layout_width="0dp"
+        android:layout_height="42dp"
+
+        android:layout_marginTop="32dp"
+        android:clickable="false"
+        android:elevation="0dp"
+        android:fontFamily="sans-serif-medium"
+        android:insetTop="0dp"
+        android:insetBottom="0dp"
+        android:text="@string/face_capture"
+        android:textAllCaps="false"
+        android:textSize="12sp"
+        android:typeface="sans"
+        app:layout_constraintEnd_toStartOf="@+id/vertical_centerline"
+        app:layout_constraintStart_toStartOf="parent"
+        app:layout_constraintTop_toBottomOf="@+id/video_capture_button" />
+
     <androidx.camera.view.PreviewView
         android:id="@+id/viewFinder"
         android:layout_width="match_parent"
@@ -34,23 +53,30 @@
     <Button
         android:id="@+id/image_capture_button"
         android:layout_width="110dp"
-        android:layout_height="110dp"
-        android:layout_marginBottom="10dp"
+        android:layout_height="40dp"
         android:layout_marginEnd="50dp"
+        android:layout_marginBottom="10dp"
         android:elevation="2dp"
+        android:insetTop="0dp"
+        android:insetBottom="0dp"
         android:text="@string/take_photo"
+        android:textAllCaps="false"
+        android:textSize="12sp"
         app:layout_constraintBottom_toBottomOf="parent"
-        app:layout_constraintLeft_toLeftOf="parent"
         app:layout_constraintEnd_toStartOf="@id/vertical_centerline"
-        />
+        app:layout_constraintLeft_toLeftOf="parent" />
 
     <Button
         android:id="@+id/popup_button"
         android:layout_width="110dp"
-        android:layout_height="110dp"
+        android:layout_height="40dp"
         android:layout_marginBottom="10dp"
         android:elevation="2dp"
+        android:insetTop="0dp"
+        android:insetBottom="0dp"
         android:text="@string/popup_photo"
+        android:textAllCaps="false"
+        android:textSize="12sp"
         app:layout_constraintBottom_toBottomOf="parent"
         app:layout_constraintEnd_toEndOf="parent"
         app:layout_constraintStart_toStartOf="@+id/vertical_centerline" />
@@ -58,24 +84,42 @@
     <Button
         android:id="@+id/video_capture_button"
         android:layout_width="0dp"
-        android:layout_height="53dp"
+        android:layout_height="42dp"
 
         android:clickable="false"
         android:elevation="0dp"
+        android:fontFamily="sans-serif-medium"
         android:insetTop="0dp"
+        android:insetBottom="0dp"
         android:text="@string/start_capture"
+        android:textAllCaps="false"
+        android:textSize="12sp"
+        android:typeface="sans"
         app:layout_constraintEnd_toEndOf="parent"
         app:layout_constraintHorizontal_bias="0.0"
         app:layout_constraintStart_toStartOf="parent"
         app:layout_constraintTop_toBottomOf="@+id/viewFinder" />
 
     <TextView
-        android:id="@+id/tv_label"
+        android:id="@+id/tv_view"
         android:layout_width="wrap_content"
         android:layout_height="wrap_content"
         android:layout_marginEnd="44dp"
         android:text="TextView"
         app:layout_constraintBottom_toTopOf="@+id/popup_button"
         app:layout_constraintEnd_toEndOf="parent" />
+
+    <EditText
+        android:id="@+id/editTextNama"
+        style="@style/Widget.AppCompat.EditText"
+        android:layout_width="0dp"
+        android:layout_height="wrap_content"
+        android:layout_marginTop="90dp"
+        android:ems="10"
+        android:inputType="textPersonName"
+        android:text="Name"
+        app:layout_constraintEnd_toEndOf="parent"
+        app:layout_constraintStart_toStartOf="@+id/vertical_centerline"
+        app:layout_constraintTop_toBottomOf="@+id/video_capture_button" />
 
 </androidx.constraintlayout.widget.ConstraintLayout>

@@ -27,7 +27,6 @@ import androidx.annotation.RequiresApi
 import androidx.camera.core.ExperimentalGetImage
 import androidx.camera.core.ImageProxy
 import androidx.exifinterface.media.ExifInterface
-import com.android.example.cameraxapp.FrameMetadata
 import java.io.ByteArrayOutputStream
 import java.io.FileOutputStream
 import java.io.IOException
@@ -255,18 +254,29 @@ object BitmapUtils {
 
     /**
     https://developer.android.com/reference/android/graphics/Bitmap.html#createBitmap(android.graphics.Bitmap,%20int,%20int,%20int,%20int)
-    */
-    fun cropBitmap(source: Bitmap, rect: Rect ): Bitmap {
+     */
+    fun cropBitmap(source: Bitmap, rect: Rect): Bitmap {
         var width = rect.width()
         var height = rect.height()
-        if ( (rect.left + width) > source.width ){
+
+        if (rect.left < 0) {
+            rect.left = 0
+        } else if (rect.top < 0){
+            rect.top = 0
+        } else if (rect.bottom < 1){
+            rect.bottom = 1
+        } else if (rect.right < 1){
+            rect.right = 1
+        }
+
+        if ((rect.left + width) > source.width) {
             width = source.width - rect.left
         }
-        if ( (rect.top + height ) > source.height ){
+        if ((rect.top + height) > source.height) {
             height = source.height - rect.top
         }
-        val croppedBitmap = Bitmap.createBitmap( source , rect.left , rect.top , width , height )
-        return croppedBitmap
+
+        return Bitmap.createBitmap(source, rect.left, rect.top, width, height)
     }
 
     /**

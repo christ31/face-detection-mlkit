@@ -20,3 +20,9 @@ What is unit?
 
 Creating/Draw Rectangle in CameraPreview/PreviewView
 - https://stackoverflow.com/questions/63090795/how-to-draw-on-previewview
+
+Storing HashMap internally
+- https://stackoverflow.com/questions/17728449/how-can-i-store-a-data-structure-such-as-a-hashmap-internally-in-android
+
+Using OpenCV in Android Studio
+- https://medium.com/android-news/a-beginners-guide-to-setting-up-opencv-android-library-on-android-studio-19794e220f3c
