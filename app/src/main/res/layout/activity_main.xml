@@ -22,6 +22,7 @@
         android:textAllCaps="false"
         android:textSize="12sp"
         android:typeface="sans"
+        app:cornerRadius="0dp"
         app:layout_constraintEnd_toStartOf="@+id/vertical_centerline"
         app:layout_constraintStart_toStartOf="parent"
         app:layout_constraintTop_toBottomOf="@+id/video_capture_button" />
@@ -55,7 +56,6 @@
         android:layout_width="110dp"
         android:layout_height="40dp"
         android:layout_marginEnd="50dp"
-        android:layout_marginBottom="10dp"
         android:elevation="2dp"
         android:insetTop="0dp"
         android:insetBottom="0dp"
@@ -70,7 +70,6 @@
         android:id="@+id/popup_button"
         android:layout_width="110dp"
         android:layout_height="40dp"
-        android:layout_marginBottom="10dp"
         android:elevation="2dp"
         android:insetTop="0dp"
         android:insetBottom="0dp"
@@ -95,6 +94,7 @@
         android:textAllCaps="false"
         android:textSize="12sp"
         android:typeface="sans"
+        app:cornerRadius="0dp"
         app:layout_constraintEnd_toEndOf="parent"
         app:layout_constraintHorizontal_bias="0.0"
         app:layout_constraintStart_toStartOf="parent"
@@ -104,21 +104,20 @@
         android:id="@+id/tv_view"
         android:layout_width="wrap_content"
         android:layout_height="wrap_content"
-        android:layout_marginEnd="44dp"
         android:text="TextView"
-        app:layout_constraintBottom_toTopOf="@+id/popup_button"
-        app:layout_constraintEnd_toEndOf="parent" />
+        app:layout_constraintEnd_toEndOf="parent"
+        app:layout_constraintTop_toBottomOf="@+id/editTextNama" />
 
     <EditText
         android:id="@+id/editTextNama"
         style="@style/Widget.AppCompat.EditText"
         android:layout_width="0dp"
         android:layout_height="wrap_content"
-        android:layout_marginTop="90dp"
         android:ems="10"
         android:inputType="textPersonName"
         android:text="Name"
         app:layout_constraintEnd_toEndOf="parent"
+        app:layout_constraintHorizontal_bias="1.0"
         app:layout_constraintStart_toStartOf="@+id/vertical_centerline"
         app:layout_constraintTop_toBottomOf="@+id/video_capture_button" />
 

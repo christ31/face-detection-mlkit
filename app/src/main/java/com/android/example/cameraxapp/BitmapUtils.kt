@@ -259,13 +259,18 @@ object BitmapUtils {
         var width = rect.width()
         var height = rect.height()
 
+        Log.d(TAG, "rect before: $rect")
+
         if (rect.left < 0) {
             rect.left = 0
-        } else if (rect.top < 0){
+        }
+        if (rect.top < 0){
             rect.top = 0
-        } else if (rect.bottom < 1){
+        }
+        if (rect.bottom < 1){
             rect.bottom = 1
-        } else if (rect.right < 1){
+        }
+        if (rect.right < 1){
             rect.right = 1
         }
 
@@ -275,6 +280,9 @@ object BitmapUtils {
         if ((rect.top + height) > source.height) {
             height = source.height - rect.top
         }
+
+        Log.d(TAG, "rect after: ${rect.toString()}")
+        Log.d(TAG, "width: $width | height: $height")
 
         return Bitmap.createBitmap(source, rect.left, rect.top, width, height)
     }

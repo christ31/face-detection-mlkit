@@ -349,7 +349,7 @@ private class GoogleFaceDetector( var context: Context,
           if(faces.isNotEmpty()){
             model.setFaceBound(faces[0].boundingBox)
             val detected = model.analyze(imageProxy)
-
+            Log.d(TAG, "Detected = $detected")
             faceBoundOverlay.drawFaceBounds(mappingFace, detected)
           }
         }
@@ -387,7 +387,7 @@ class TFModel(val context: Context,
   private var nameDistanceHash: HashMap<String, Array<FloatArray>> = HashMap()
   private var index: Int = 0
   private var indexReg: Int = 0
-  private val outputs = Array(5) {FloatArray(128)} // We will store 10 images for 1 person
+  private var outputs = Array(5) {FloatArray(128)} // We will store 10 images for 1 person
   private var normalisasi: HashMap<String, Float> = HashMap()
   private var registerState = false
   private var numFaceStored = 5
@@ -415,7 +415,7 @@ class TFModel(val context: Context,
             tfInputSize.height, tfInputSize.width, ResizeOp.ResizeMethod.NEAREST_NEIGHBOR)
         )
         .add(Rot90Op(-imageRotationDegrees / 90))
-        .add(NormalizeOp(128f, 128f)) // Default (0, 1) No computation will happen
+        .add(NormalizeOp(160f, 160f)) // Default (0, 1) No computation will happen. Normalizes a TensorBuffer with given mean and stddev: output = (input - mean) / stddev.
         .build()
 
     try{
@@ -430,6 +430,17 @@ class TFModel(val context: Context,
       Log.d(TAG, "Kunci ${it.key} = ")
       it.value.forEach {
         Log.d(TAG, "128-D Values = ${it[0]}, ${it[1]}, ${it[2]}, ..., ${it[127]}")
+
+        var lowest = 10F
+        var highest = -10F
+        it.forEach {
+          if(it < lowest){
+            lowest = it
+          } else if (it > highest){
+            highest = it
+          }
+        }
+        Log.d(TAG, "Lowest Value = $lowest | Highest Value = $highest")
       }
     }
 
@@ -470,7 +481,12 @@ class TFModel(val context: Context,
       registerEmbed(outputBuffer, name)
       registerState = false
     }
-    index += 1;
+
+    if(index > 120){
+      index = 0
+    } else {
+      index += 1;
+    }
 
     // Comparing faces using L2 Norm
     // Only compare if index is incrementing
@@ -487,7 +503,15 @@ class TFModel(val context: Context,
         "| registerState: ${viewBinding.editTextNama.text} | IndexReg: $indexReg"
     listener(iniLog)
 
-    return normalisasi.values.isNotEmpty()
+    if (normalisasi.keys.contains("Unknown")){
+      return false
+    } else {
+      var ada = false
+      for (value in normalisasi.values) {
+        ada = (value <= ACCURACY_THRESHOLD)
+      }
+      return ada
+    }
 
 //    Log.d(TAG, "INDEXING : $normalisasi")
 //    for (i in 0 until outputBuffer[0].size-1){
@@ -520,6 +544,7 @@ class TFModel(val context: Context,
 
   // Create L2Norm to find distances
   fun L2Norm(data: Array<FloatArray>): HashMap<String, Float>{
+    Log.d(TAG, "Calculating Distance START >>>>>>>>>>>>>>>>>>>>")
     var distance = Float.MAX_VALUE
     var distanceT = 0.0F
     val valueF = data[0]
@@ -528,25 +553,30 @@ class TFModel(val context: Context,
 
     // Loop to all embeds in knownEmbed
     nameDistanceHash.forEach{
-      Log.d(TAG, "Now comparing it with ${it.key}")
+      Log.d(TAG, "Now comparing with ${it.key} ${it.value.size}")
       // Loop to all values in 128-D embeds, and find L2 Norm on the difference between knownEmbed..
       // ..and currentEmbed
-      for (i in 0 until valueF.size-1){
-        // Log.d(TAG, "valueF.get(i) - it.value[0][i]: ${valueF.get(i)} - ${it.value[0][i]}")
+      val currentName = it.key
 
-        val diff = valueF[i] - it.value[0][i]
-        distanceT +=  diff * diff
-      }
-      distanceT = sqrt(distanceT)
+      it.value.forEach {
+        for (i in 0 until valueF.size-1){
+          // Log.d(TAG, "valueF.get(i) - it.value[0][i]: ${valueF.get(i)} - ${it.value[0][i]}")
+          val diff = valueF[i] - it[i]
+          distanceT +=  diff * diff
+        }
+        distanceT = sqrt(distanceT)
 
-      if(distance>distanceT){
-        distance = distanceT
-        name = it.key
+        if(distance>distanceT){
+          distance = distanceT
+          name = currentName
+        }
+        Log.d(TAG, "Cur.Low.dist.: ${distance} | distanceTo ${currentName}: ${distanceT} | Est: ${name}")
       }
-      Log.d(TAG, "distance: ${distance} | distanceT: ${distanceT} | name: ${name}")
+
+
     }
     store[name] = distance
-    Log.d(TAG, "distancing is FINISHED>>>>>>>>>>>>>>>>>>>")
+    Log.d(TAG, "Calculating Distance FINISHED >>>>>>>>>>>>>>>>>>>>")
     return store
   }
 
@@ -589,12 +619,13 @@ class TFModel(val context: Context,
       }
     } else if (indexReg == numFaceStored){
       saveHashInternal(context, nameDistanceHash)
-      nameDistanceHash = loadHashInternal(context, "/FaceEmbeddings.c31")
       indexReg = 0
+
+      // Clear all values in outputs
+      outputs = Array(5){FloatArray(128)}
+
       viewBinding.captureButton.text = "Capture Face"
       Toast.makeText(context, "$name is saved", Toast.LENGTH_SHORT).show()
-      Log.d(TAG, "Registering output $outputs")
-      Log.d(TAG, "Registering $name successfully")
     }
 
   }
@@ -602,7 +633,7 @@ class TFModel(val context: Context,
   companion object{
     // Define the settings for the model used in TF
     private const val TAG = "TF Class"
-    private const val ACCURACY_THRESHOLD = 0.5f
+    private const val ACCURACY_THRESHOLD = 10f
 //    private const val MODEL_PATH = "coco_ssd_mobilenet_v1_1.0_quant.tflite"
     private const val MODEL_PATH = "facenet.tflite"
   }
