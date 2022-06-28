@@ -26,13 +26,18 @@ import androidx.core.app.ActivityCompat
 import androidx.core.content.ContextCompat
 import androidx.core.graphics.toRectF
 import androidx.lifecycle.LifecycleOwner
-import androidx.viewbinding.ViewBinding
 import com.android.example.cameraxapp.databinding.ActivityMainBinding
+import com.android.volley.Request
+import com.android.volley.RequestQueue
+import com.android.volley.Response
+import com.android.volley.toolbox.StringRequest
+import com.android.volley.toolbox.Volley
 import com.google.android.material.dialog.MaterialAlertDialogBuilder
 import com.google.mlkit.vision.common.InputImage
 import com.google.mlkit.vision.face.FaceDetection
 import com.google.mlkit.vision.face.FaceDetectorOptions.*
-import org.checkerframework.checker.units.qual.A
+import org.json.JSONException
+import org.json.JSONObject
 import org.tensorflow.lite.Interpreter
 import org.tensorflow.lite.nnapi.NnApiDelegate
 import org.tensorflow.lite.support.common.FileUtil
@@ -49,6 +54,7 @@ import java.util.concurrent.ExecutorService
 import java.util.concurrent.Executors
 import kotlin.collections.HashMap
 import kotlin.math.sqrt
+
 
 typealias LabelListener = (String) -> Unit
 
@@ -73,11 +79,19 @@ class MainActivity : AppCompatActivity() {
     val captureButton: Button = viewBinding.imageCaptureButton
     val kotakNama: EditText = viewBinding.editTextNama
     val faceCapture: Button = viewBinding.captureButton
+    val report: Button = viewBinding.btnReport
+    val update: Button = viewBinding.btnUpdate
 
     // For Button
     captureButton.setOnClickListener{takePhoto()}
     popupButton.setOnClickListener{showPopUpMaterial()}
     faceCapture.setOnClickListener{registerFace()}
+    report.setOnClickListener {
+      insertData("Natanniel", "n@presensi.com", "n", "0811")
+    }
+    update.setOnClickListener{
+      updateData("4", "Hadir") // Belum Presensi
+    }
 
     // Request camera permissions
     if (allPermissionsGranted()) {
@@ -266,6 +280,64 @@ class MainActivity : AppCompatActivity() {
     this.registerState = true
   }
 
+  // Send data to mySQL server
+  // https://www.androidhire.com/insert-data-from-app-to-mysql-android/
+  private fun insertData(name: String, email: String, password: String, noHP: String){
+    val url = "http://192.168.100.7/connectToMySQL/add.php"
+    val queue = Volley.newRequestQueue(this)
+    val parameters: MutableMap<String, String> = HashMap()
+    parameters["namaP"] = name
+    parameters["passP"] = password
+    parameters["emailP"] = email
+    parameters["noHpP"] = noHP
+
+    val request = request(url, parameters)
+
+    queue.add(request) // add a request to the dispatch queue
+  }
+
+  private fun updateData(id: String, status: String){
+    val url = "http://192.168.100.7/connectToMySQL/update.php"
+    val queue = Volley.newRequestQueue(this)
+    val parameters: MutableMap<String, String> = HashMap()
+    parameters["idP"] = id
+    parameters["statusP"] = status
+
+    val request = request(url, parameters)
+
+    queue.add(request)
+  }
+
+  private fun request(url: String, parameters: MutableMap<String, String>): StringRequest{
+    // Use 'object :' to override function inside StringRequest()
+    val request = object : StringRequest(
+      Method.POST,
+      url,
+      Response.Listener {
+        Log.e("REGISTER", it)
+        try{
+          val message = JSONObject(it)
+          Toast.makeText(this, message.getString("message"), Toast.LENGTH_SHORT).show()
+        } catch (e: JSONException){
+          e.printStackTrace()
+        }},
+      // https://stackoverflow.com/questions/45940861/android-8-cleartext-http-traffic-not-permitted
+      Response.ErrorListener {
+        Toast.makeText(this, "Fail to get response = $it", Toast.LENGTH_LONG).show()
+      }){
+      override fun getParams(): MutableMap<String, String>? {
+        // below line we are creating a map for storing
+        // our values in key and value pair.
+        var params: MutableMap<String, String> = HashMap()
+        params = parameters
+
+        // at last we are returning our params.
+        return params
+      }
+    }
+    return request
+  }
+
   // Companion Object -> An object declaration inside a class
   companion object {
     private const val TAG = "CameraXApp"
@@ -285,10 +357,11 @@ class MainActivity : AppCompatActivity() {
 }
 
 /** Create Use Cases that will be used in imageFrameAnalysis */
-private class GoogleFaceDetector( var context: Context,
-                                  private var faceBoundOverlay : FaceBoundOverlay,
-                                  viewBinding: ActivityMainBinding,
-                                  var listener: LabelListener,
+private class GoogleFaceDetector(
+  var context: Context,
+  private var faceBoundOverlay: FaceBoundOverlay,
+  viewBinding: ActivityMainBinding,
+  var listener: LabelListener,
 ) : ImageAnalysis.Analyzer {
 
   private val TAG = "GoogleFaceDetector"
@@ -388,9 +461,9 @@ class TFModel(val context: Context,
   private var index: Int = 0
   private var indexReg: Int = 0
   private var outputs = Array(5) {FloatArray(128)} // We will store 10 images for 1 person
-  private var normalisasi: HashMap<String, Float> = HashMap()
   private var registerState = false
   private var numFaceStored = 5
+  private var hasilPrediction: Array<Any> = arrayOf("Unknown", 0F, 0)
 
 
   init {
@@ -419,7 +492,10 @@ class TFModel(val context: Context,
         .build()
 
     try{
-      nameDistanceHash = loadHashInternal(context, "/FaceEmbeddings.c31")
+      val filename = "/FaceEmbeddings.c31"
+      val filename2 = "/FaceEmbeddings V5 Zoom in.c31"
+      val filename3 = "/FaceEmbeddings V5 No Zoom.c31"
+      nameDistanceHash = loadHashInternal(context, filename2)
     } catch(e:IOException){
       Log.e(TAG, e.toString())
     } finally {
@@ -482,84 +558,59 @@ class TFModel(val context: Context,
       registerState = false
     }
 
-    if(index > 120){
+
+    // Comparing faces using L2 Norm
+    // Only compare if index is incrementing
+    // L2 Norm = sqrt( SumEach( values^2 ) )
+
+    if((index+1) % 10 == 0){
+      hasilPrediction = L2Norm(outputBuffer)
+    }
+
+    val (predikNama, predikScore, pictureID) = hasilPrediction
+
+    // Debug Listener
+//    listener("Index: $index | nameDistance.size: ${nameDistanceHash["Bill Gates"]?.size}")
+    viewBinding.tvView.text = "IDPicture used: $pictureID"
+
+    var iniLog = "Predicting: ${predikNama} [${predikScore}] | Clock: $index | Face Registered: ${nameDistanceHash.entries.size} " +
+        "| IndexReg: $indexReg"
+    listener(iniLog)
+
+    if(index >= 120){
       index = 0
     } else {
       index += 1;
     }
 
-    // Comparing faces using L2 Norm
-    // Only compare if index is incrementing
-    // L2 Norm = sqrt( SumEach( values^2 ) )
-    if((index+1) % 5 == 0){
-      normalisasi = L2Norm(outputBuffer)
-    }
-
-    // Debug Listener
-//    listener("Index: $index | nameDistance.size: ${nameDistanceHash["Bill Gates"]?.size}")
-    viewBinding.tvView.text = "registerState = ${registerState}"
-
-    var iniLog = "L2 Norm: ${normalisasi.keys} ${normalisasi.values} | Index: $index | Face Registered: ${nameDistanceHash.entries.size} " +
-        "| registerState: ${viewBinding.editTextNama.text} | IndexReg: $indexReg"
-    listener(iniLog)
-
-    if (normalisasi.keys.contains("Unknown")){
+    if(predikNama == "Unknown"){
       return false
     } else {
-      var ada = false
-      for (value in normalisasi.values) {
-        ada = (value <= ACCURACY_THRESHOLD)
+      if(predikScore as Float <= ACCURACY_THRESHOLD){
+        return true
       }
-      return ada
+      return false
     }
-
-//    Log.d(TAG, "INDEXING : $normalisasi")
-//    for (i in 0 until outputBuffer[0].size-1){
-//      Log.d(TAG, "TFLite outputBuffer ArrayFloat: ${outputBuffer[0][i]}")
-//    }
-
-//    val predictions = detector.predict(tfImage)
-//    Log.d(TAG, "TFLite Prediction is : " + predictions.toString())
-
-    var label_predict = "Unidentified"
-    var highest_score = 0F
-    var score = 0F
-    /**
-    for (i in 0..predictions.lastIndex){
-      score = predictions.get(i).score
-      if(predictions.get(i).score > ACCURACY_THRESHOLD){
-        if(score > highest_score){
-          highest_score = score
-          label_predict = predictions.get(i).label
-        }
-      }
-    }
-    listener(label_predict)
-    */
-    // Show bounding box from predictions
-//    val mappingObject = listOf(predictions.get(0).location)
-//    Log.d("TFLite BoundingBox", mappingObject.get(0).toString())
-//    faceBoundOverlay.drawFaceBounds(mappingObject)
   }
 
   // Create L2Norm to find distances
-  fun L2Norm(data: Array<FloatArray>): HashMap<String, Float>{
+  fun L2Norm(data: Array<FloatArray>): Array<Any>{
     Log.d(TAG, "Calculating Distance START >>>>>>>>>>>>>>>>>>>>")
     var distance = Float.MAX_VALUE
     var distanceT = 0.0F
     val valueF = data[0]
-    var name = "Unknown"
-    var store: HashMap<String, Float> = HashMap()
+    var nama = "Unknown"
+    var pictureUsed = 0
 
     // Loop to all embeds in knownEmbed
-    nameDistanceHash.forEach{
+    nameDistanceHash.forEach{ // People.size Loops
       Log.d(TAG, "Now comparing with ${it.key} ${it.value.size}")
       // Loop to all values in 128-D embeds, and find L2 Norm on the difference between knownEmbed..
       // ..and currentEmbed
       val currentName = it.key
-
+      var idx = 1
       it.value.forEach {
-        for (i in 0 until valueF.size-1){
+        for (i in 0 until valueF.size-1){ //128-D Loops
           // Log.d(TAG, "valueF.get(i) - it.value[0][i]: ${valueF.get(i)} - ${it.value[0][i]}")
           val diff = valueF[i] - it[i]
           distanceT +=  diff * diff
@@ -568,16 +619,17 @@ class TFModel(val context: Context,
 
         if(distance>distanceT){
           distance = distanceT
-          name = currentName
+          nama = currentName
+          pictureUsed = idx
         }
-        Log.d(TAG, "Cur.Low.dist.: ${distance} | distanceTo ${currentName}: ${distanceT} | Est: ${name}")
+        idx += 1
+        Log.d(TAG, "Cur.Low.dist.: ${distance} | distanceTo ${currentName}: ${distanceT} | Est: ${nama}")
       }
 
 
     }
-    store[name] = distance
     Log.d(TAG, "Calculating Distance FINISHED >>>>>>>>>>>>>>>>>>>>")
-    return store
+    return arrayOf(nama, distance, pictureUsed)
   }
 
   fun saveHashInternal(context: Context, data: HashMap<String, Array<FloatArray>>){
@@ -634,7 +686,6 @@ class TFModel(val context: Context,
     // Define the settings for the model used in TF
     private const val TAG = "TF Class"
     private const val ACCURACY_THRESHOLD = 10f
-//    private const val MODEL_PATH = "coco_ssd_mobilenet_v1_1.0_quant.tflite"
     private const val MODEL_PATH = "facenet.tflite"
   }
 }

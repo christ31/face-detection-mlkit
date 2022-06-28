@@ -121,4 +121,26 @@
         app:layout_constraintStart_toStartOf="@+id/vertical_centerline"
         app:layout_constraintTop_toBottomOf="@+id/video_capture_button" />
 
+    <Button
+        android:id="@+id/btn_report"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:layout_marginBottom="132dp"
+        android:text="AddUser"
+        app:layout_constraintBottom_toTopOf="@+id/popup_button"
+        app:layout_constraintEnd_toEndOf="parent"
+        app:layout_constraintHorizontal_bias="0.0"
+        app:layout_constraintStart_toStartOf="@+id/vertical_centerline" />
+
+    <Button
+        android:id="@+id/btn_update"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:layout_marginBottom="92dp"
+        android:text="UpdateStatus"
+        app:layout_constraintBottom_toTopOf="@+id/popup_button"
+        app:layout_constraintEnd_toEndOf="parent"
+        app:layout_constraintHorizontal_bias="1.0"
+        app:layout_constraintStart_toStartOf="@+id/vertical_centerline" />
+
 </androidx.constraintlayout.widget.ConstraintLayout>
