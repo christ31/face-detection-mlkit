@@ -26,3 +26,6 @@ Storing HashMap internally
 
 Using OpenCV in Android Studio
 - https://medium.com/android-news/a-beginners-guide-to-setting-up-opencv-android-library-on-android-studio-19794e220f3c
+
+Connecting to MySQL using Android Library 'Volley'
+- https://www.geeksforgeeks.org/volley-library-in-android/

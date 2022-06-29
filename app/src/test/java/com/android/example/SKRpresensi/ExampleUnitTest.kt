@@ -1,4 +1,4 @@
-package com.android.example.cameraxapp
+package com.android.example.SKRpresensi
 
 import org.junit.Test
 

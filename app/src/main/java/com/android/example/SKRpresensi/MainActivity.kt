@@ -1,4 +1,4 @@
-package com.android.example.cameraxapp
+package com.android.example.SKRpresensi
 
 import android.Manifest
 import android.annotation.SuppressLint
@@ -26,10 +26,10 @@ import androidx.core.app.ActivityCompat
 import androidx.core.content.ContextCompat
 import androidx.core.graphics.toRectF
 import androidx.lifecycle.LifecycleOwner
-import com.android.example.cameraxapp.databinding.ActivityMainBinding
+import com.android.example.SKRpresensi.databinding.ActivityMainBinding
 import com.android.volley.Request
-import com.android.volley.RequestQueue
 import com.android.volley.Response
+import com.android.volley.toolbox.JsonObjectRequest
 import com.android.volley.toolbox.StringRequest
 import com.android.volley.toolbox.Volley
 import com.google.android.material.dialog.MaterialAlertDialogBuilder
@@ -81,17 +81,12 @@ class MainActivity : AppCompatActivity() {
     val faceCapture: Button = viewBinding.captureButton
     val report: Button = viewBinding.btnReport
     val update: Button = viewBinding.btnUpdate
+    val get: Button = viewBinding.btnGet
 
     // For Button
     captureButton.setOnClickListener{takePhoto()}
     popupButton.setOnClickListener{showPopUpMaterial()}
     faceCapture.setOnClickListener{registerFace()}
-    report.setOnClickListener {
-      insertData("Natanniel", "n@presensi.com", "n", "0811")
-    }
-    update.setOnClickListener{
-      updateData("4", "Hadir") // Belum Presensi
-    }
 
     // Request camera permissions
     if (allPermissionsGranted()) {
@@ -280,63 +275,6 @@ class MainActivity : AppCompatActivity() {
     this.registerState = true
   }
 
-  // Send data to mySQL server
-  // https://www.androidhire.com/insert-data-from-app-to-mysql-android/
-  private fun insertData(name: String, email: String, password: String, noHP: String){
-    val url = "http://192.168.100.7/connectToMySQL/add.php"
-    val queue = Volley.newRequestQueue(this)
-    val parameters: MutableMap<String, String> = HashMap()
-    parameters["namaP"] = name
-    parameters["passP"] = password
-    parameters["emailP"] = email
-    parameters["noHpP"] = noHP
-
-    val request = request(url, parameters)
-
-    queue.add(request) // add a request to the dispatch queue
-  }
-
-  private fun updateData(id: String, status: String){
-    val url = "http://192.168.100.7/connectToMySQL/update.php"
-    val queue = Volley.newRequestQueue(this)
-    val parameters: MutableMap<String, String> = HashMap()
-    parameters["idP"] = id
-    parameters["statusP"] = status
-
-    val request = request(url, parameters)
-
-    queue.add(request)
-  }
-
-  private fun request(url: String, parameters: MutableMap<String, String>): StringRequest{
-    // Use 'object :' to override function inside StringRequest()
-    val request = object : StringRequest(
-      Method.POST,
-      url,
-      Response.Listener {
-        Log.e("REGISTER", it)
-        try{
-          val message = JSONObject(it)
-          Toast.makeText(this, message.getString("message"), Toast.LENGTH_SHORT).show()
-        } catch (e: JSONException){
-          e.printStackTrace()
-        }},
-      // https://stackoverflow.com/questions/45940861/android-8-cleartext-http-traffic-not-permitted
-      Response.ErrorListener {
-        Toast.makeText(this, "Fail to get response = $it", Toast.LENGTH_LONG).show()
-      }){
-      override fun getParams(): MutableMap<String, String>? {
-        // below line we are creating a map for storing
-        // our values in key and value pair.
-        var params: MutableMap<String, String> = HashMap()
-        params = parameters
-
-        // at last we are returning our params.
-        return params
-      }
-    }
-    return request
-  }
 
   // Companion Object -> An object declaration inside a class
   companion object {
@@ -399,35 +337,26 @@ private class GoogleFaceDetector(
       val result = detector.process(image)
         .addOnSuccessListener { faces -> // Task completed successfully
           // STEP 5 : Get information about detected faces
-          /**
-          for (face in faces) {
-            val bounds = face.boundingBox
-            val rotY = face.headEulerAngleY // Head is rotated to the right rotY degrees
-            val rotZ = face.headEulerAngleZ // Head is tilted sideways rotZ degrees
-
-            if (face.trackingId != null) {
-              val id = face.trackingId
-            }
-            Log.d(TAG, "Found a face: ${face.toString()}")
-          }
-          */
 
           /** For now, we will focus on 1 faces recognition in 1 images */
           // Map faces and send it to faceBoundOverlay to draw Bounding Box
           val mappingFace = faces.map { it.boundingBox.toRectF() }
-          Log.d(TAG, "face = ${faces.size}")
+          // Log.d(TAG, "face = ${faces.size}")
 
           // Send GoogleML's imageProxy to FaceNet
           /** Call FaceNet Model from here */
           if(faces.isNotEmpty()){
             model.setFaceBound(faces[0].boundingBox)
-            val detected = model.analyze(imageProxy)
-            Log.d(TAG, "Detected = $detected")
-            faceBoundOverlay.drawFaceBounds(mappingFace, detected)
+            val prediction = model.analyze(imageProxy, faces.size)
+            faceBoundOverlay.drawFaceBounds(mappingFace, prediction)
+          } else {
+            // Clear boundingbox
+            faceBoundOverlay.clear()
+            model.resetQuery()
           }
         }
         .addOnFailureListener { e -> // Task failed with an exception
-          Log.e(TAG, e.message.toString())
+          // Log.e(TAG, e.message.toString())
         }
         .addOnSuccessListener { /** IMPORTANT : If success, then close the image proxy */
           imageProxy.close()
@@ -463,10 +392,18 @@ class TFModel(val context: Context,
   private var outputs = Array(5) {FloatArray(128)} // We will store 10 images for 1 person
   private var registerState = false
   private var numFaceStored = 5
-  private var hasilPrediction: Array<Any> = arrayOf("Unknown", 0F, 0)
-
+  private var hasilPrediction: Array<Any> = arrayOf("Unknown", 999F, 0)
+  private var result: HashMap<String, String> = HashMap()
+  private var query: HashMap<String, String> = HashMap()
 
   init {
+    result["detected"] = "No"
+    result["status"] = "Kosong"
+    result["name"] = "Unknown"
+    result["score"] = "999"
+    result["id"] = "-1"
+
+
     // Setting up interpreter
     tfLiteInterp =
       Interpreter(
@@ -503,9 +440,9 @@ class TFModel(val context: Context,
     }
 
     nameDistanceHash.forEach{ it ->
-      Log.d(TAG, "Kunci ${it.key} = ")
+      // Log.d(TAG, "Kunci ${it.key} = ")
       it.value.forEach {
-        Log.d(TAG, "128-D Values = ${it[0]}, ${it[1]}, ${it[2]}, ..., ${it[127]}")
+        // Log.d(TAG, "128-D Values = ${it[0]}, ${it[1]}, ${it[2]}, ..., ${it[127]}")
 
         var lowest = 10F
         var highest = -10F
@@ -516,25 +453,182 @@ class TFModel(val context: Context,
             highest = it
           }
         }
-        Log.d(TAG, "Lowest Value = $lowest | Highest Value = $highest")
+        // Log.d(TAG, "Lowest Value = $lowest | Highest Value = $highest")
       }
     }
+
+    val kotakNama = viewBinding.editTextNama
 
     viewBinding.captureButton.setOnClickListener {
       registerState = true
     }
+
+    viewBinding.btnReport.setOnClickListener {
+      val nama = kotakNama.text.toString()
+      insertData(nama, "n@presensi.com", "n", "0811")
+    }
+    viewBinding.btnUpdate.setOnClickListener{
+      val id = kotakNama.text.toString()
+      updateData(id, "Hadir") // Belum Presensi
+    }
+    viewBinding.btnGet.setOnClickListener {
+      val nama = kotakNama.text.toString()
+      getID(nama)
+    }
   }
+
+  // Reset query and result when face is not detected
+  fun resetQuery(){
+    query = HashMap()
+    result = HashMap()
+  }
+
+  /** Send data to mySQL server */
+  // https://www.androidhire.com/insert-data-from-app-to-mysql-android/
+  private fun insertData(name: String, email: String, password: String, noHP: String){
+    val url = "http://192.168.100.7/connectToMySQL/add.php"
+    val queue = Volley.newRequestQueue(context)
+    val parameters: MutableMap<String, String> = HashMap()
+    parameters["namaP"] = name
+    parameters["passP"] = password
+    parameters["emailP"] = email
+    parameters["noHpP"] = noHP
+
+    val request = requestPost(url, parameters)
+
+    queue.add(request) // add a request to the dispatch queue
+  }
+
+  private fun updateData(id: String, status: String){
+    val url = "http://192.168.100.7/connectToMySQL/update.php"
+    val queue = Volley.newRequestQueue(context)
+    val parameters: MutableMap<String, String> = HashMap()
+    parameters["idP"] = id
+    parameters["statusP"] = status
+
+    val request = requestPost(url, parameters)
+
+    queue.add(request)
+  }
+
+  private fun getID(nama: String){
+    val url = "http://192.168.100.7/connectToMySQL/getID.php"
+    val queue = Volley.newRequestQueue(context)
+    val parameters: MutableMap<String, String> = HashMap()
+    parameters["namaP"] = nama
+
+    val request = requestGetID(url, parameters)
+
+    queue.add(request)
+  }
+
+  private fun get(id: String, kolom: String){
+    val url = "http://192.168.100.7/connectToMySQL/get.php"
+    val queue = Volley.newRequestQueue(context)
+    val parameters: MutableMap<String, String> = HashMap()
+    parameters["idP"] = id
+    parameters["rowP"] = kolom
+
+    val request = requestGet(url, parameters)
+
+    queue.add(request)
+  }
+
+  // https://stackoverflow.com/questions/19837820/volley-jsonobjectrequest-post-request-not-working
+  private fun requestGetID(url: String, parameters: MutableMap<String, String>): StringRequest {
+    // Use 'object :' to override function inside StringRequest()
+    val request = object: StringRequest(
+      Method.POST,
+      url,
+      Response.Listener {
+        Log.e("VOLLEY", it.toString())
+        viewBinding.tvView.text = it
+        query["id"] = it.toString()
+      },
+      Response.ErrorListener {
+        Toast.makeText(context, "Fail to get response = $it", Toast.LENGTH_LONG).show()
+      }){
+      override fun getParams(): MutableMap<String, String>? {
+        return parameters
+      }
+    }
+
+    return request
+  }
+
+  private fun requestGet(url: String, parameters: MutableMap<String, String>): StringRequest {
+    // Use 'object :' to override function inside StringRequest()
+    val request = object: StringRequest(
+      Method.POST,
+      url,
+      Response.Listener {
+        Log.e("VOLLEY", it.toString())
+        viewBinding.tvView.text = it
+//        Toast.makeText(context, "Query Status = $it", Toast.LENGTH_LONG).show()
+
+        parameters.forEach { id, kolom ->
+          if(kolom == "status"){
+            query[kolom] = it
+          }
+          if(kolom == "nama"){
+            query[kolom] = it
+          }
+        }
+      },
+      Response.ErrorListener {
+        Toast.makeText(context, "Fail to get response = $it", Toast.LENGTH_LONG).show()
+      }){
+      override fun getParams(): MutableMap<String, String>? {
+        return parameters
+      }
+    }
+
+    return request
+  }
+
+  private fun requestPost(url: String, parameters: MutableMap<String, String>): StringRequest{
+    // Use 'object :' to override function inside StringRequest()
+    val request = object : StringRequest(
+      Method.POST,
+      url,
+      Response.Listener {
+        Log.e("REGISTER", it)
+        try{
+          val message = JSONObject(it)
+          viewBinding.tvView.text = it.toString()
+          Toast.makeText(context, message.getString("message"), Toast.LENGTH_SHORT).show()
+        } catch (e: JSONException){
+          e.printStackTrace()
+        }},
+      // https://stackoverflow.com/questions/45940861/android-8-cleartext-http-traffic-not-permitted
+      Response.ErrorListener {
+        Toast.makeText(context, "Fail to get response = $it", Toast.LENGTH_LONG).show()
+      }){
+      override fun getParams(): MutableMap<String, String>? {
+        return parameters
+      }
+    }
+    return request
+  }
+  /** END OF Sending to MySQL */
 
   fun setFaceBound(FaceRect: Rect){
     faceBounds = FaceRect
-    Log.d(TAG, "Facebounds is set as $faceBounds")
   }
 
   private fun bitmapToBuffer(image: Bitmap): ByteBuffer {
     return tfImageProcessor.process(TensorImage.fromBitmap(image)).buffer
   }
 
-  fun analyze(image: ImageProxy): Boolean {
+  fun analyze(image: ImageProxy, faces: Int): HashMap<String, String> {
+    // Save all the result in an array
+    result["faceCount"] = "ada"
+
+    // Emptying query if faces not found
+    if(faces == 0){
+      result["faceCount"] = "null"
+    }
+
     bitmapBuffer = BitmapUtils.getBitmap(image)!!
 //      BitmapUtils.saveBitmap(context, bitmapBuffer, "BitmapTF.png")
 
@@ -547,7 +641,7 @@ class TFModel(val context: Context,
     var tfImageBuffer = bitmapToBuffer(bitmapBuffer)
     var outputBuffer = Array(1) {FloatArray(128)}
     tfLiteInterp.run(tfImageBuffer, outputBuffer)
-    Log.d(TAG, "TFLite Prediction is: " + outputBuffer.size)
+    // Log.d(TAG, "TFLite Prediction is: " + outputBuffer.size)
 
     // Save the embed to storage
     // Only Register if the button is pressed
@@ -558,21 +652,44 @@ class TFModel(val context: Context,
       registerState = false
     }
 
-
     // Comparing faces using L2 Norm
     // Only compare if index is incrementing
     // L2 Norm = sqrt( SumEach( values^2 ) )
 
-    if((index+1) % 10 == 0){
+    /** Run every 5 or 10 clock to save resources */
+    if((index+1) % 5 == 0){
       hasilPrediction = L2Norm(outputBuffer)
     }
 
+    // Get result and save
     val (predikNama, predikScore, pictureID) = hasilPrediction
+    result["score"] = predikScore.toString()
+
+    if(predikScore as Float <= ACCURACY_THRESHOLD){
+      result["detected"] = "Yes"
+      result["name"] = predikNama.toString()
+
+      // getID from name
+      getID(result["name"]!!)
+
+      Log.d("RESULT", result.toString())
+      Log.d("QUERY", query.toString())
+      if(query.size > 0){
+        get(query["id"]!!, "status")
+//        get(query["id"]!!, "nama")
+
+        if(query["status"] != null){
+          result["status"] = query["status"]!!
+        }
+      }
+    }
+
+    viewBinding.btnGet.text = query["status"]
+    viewBinding.btnUpdate.text = "ID: " + query["id"]
+    viewBinding.btnReport.text = result["name"]
+
 
     // Debug Listener
-//    listener("Index: $index | nameDistance.size: ${nameDistanceHash["Bill Gates"]?.size}")
-    viewBinding.tvView.text = "IDPicture used: $pictureID"
-
     var iniLog = "Predicting: ${predikNama} [${predikScore}] | Clock: $index | Face Registered: ${nameDistanceHash.entries.size} " +
         "| IndexReg: $indexReg"
     listener(iniLog)
@@ -583,14 +700,7 @@ class TFModel(val context: Context,
       index += 1;
     }
 
-    if(predikNama == "Unknown"){
-      return false
-    } else {
-      if(predikScore as Float <= ACCURACY_THRESHOLD){
-        return true
-      }
-      return false
-    }
+    return result
   }
 
   // Create L2Norm to find distances
@@ -604,7 +714,7 @@ class TFModel(val context: Context,
 
     // Loop to all embeds in knownEmbed
     nameDistanceHash.forEach{ // People.size Loops
-      Log.d(TAG, "Now comparing with ${it.key} ${it.value.size}")
+      // Log.d(TAG, "Now comparing with ${it.key} ${it.value.size}")
       // Loop to all values in 128-D embeds, and find L2 Norm on the difference between knownEmbed..
       // ..and currentEmbed
       val currentName = it.key
@@ -623,10 +733,8 @@ class TFModel(val context: Context,
           pictureUsed = idx
         }
         idx += 1
-        Log.d(TAG, "Cur.Low.dist.: ${distance} | distanceTo ${currentName}: ${distanceT} | Est: ${nama}")
+        // Log.d(TAG, "Cur.Low.dist.: ${distance} | distanceTo ${currentName}: ${distanceT} | Est: ${nama}")
       }
-
-
     }
     Log.d(TAG, "Calculating Distance FINISHED >>>>>>>>>>>>>>>>>>>>")
     return arrayOf(nama, distance, pictureUsed)
@@ -650,7 +758,9 @@ class TFModel(val context: Context,
       val fileInputStream = FileInputStream(context.filesDir.toString() + filename)
       val objectInputStream = ObjectInputStream(fileInputStream)
       myHashMap = objectInputStream.readObject() as HashMap<String, Array<FloatArray>>
+      Toast.makeText(context, "File Loaded Succesfully", Toast.LENGTH_SHORT).show()
     } catch (e: IOException) {
+      Toast.makeText(context, "Empty embed, please register new faces", Toast.LENGTH_SHORT).show()
       e.printStackTrace()
     }
     return myHashMap
@@ -679,7 +789,6 @@ class TFModel(val context: Context,
       viewBinding.captureButton.text = "Capture Face"
       Toast.makeText(context, "$name is saved", Toast.LENGTH_SHORT).show()
     }
-
   }
 
   companion object{
@@ -696,7 +805,7 @@ class FaceBoundOverlay constructor(context: Context?,
 ) : View(context, attributeSet) {
   val TAG = "FaceBoundOverlay"
   val faceBounds: MutableList<RectF> = mutableListOf()
-  var detected = false
+  var prediction: HashMap<String, String> = HashMap()
 
   private val redPaint = Paint().also{
     it.style = Paint.Style.STROKE
@@ -710,9 +819,21 @@ class FaceBoundOverlay constructor(context: Context?,
     it.strokeWidth = 10f
   }
 
+  private val orangePaint = Paint().also{
+    it.style = Paint.Style.STROKE
+    it.color = Color.YELLOW
+    it.strokeWidth = 10f
+  }
+
+  fun clear(){
+    this.faceBounds.clear()
+    invalidate()
+  }
+
   // Override onDraw() to paint some UI above Camera Preview
   override fun onDraw(canvas: Canvas) {
     super.onDraw(canvas)
+
     // Pass it a list of RectF (rectBounds)
     faceBounds.forEach {
       val height = height
@@ -724,14 +845,17 @@ class FaceBoundOverlay constructor(context: Context?,
         it.top = it.top * height
         it.bottom = it.bottom * height
       }
-      if(detected){
+      if(prediction["name"] == "Unknown"){
+        canvas.drawRoundRect(it, 16F, 16F, redPaint)
+      } else if(prediction["status"] == "Hadir") {
         canvas.drawRoundRect(it, 16F, 16F, greenPaint)
+      } else if(prediction["status"] == "Belum Presensi"){
+        canvas.drawRoundRect(it, 16F, 16F, orangePaint)
       } else {
         canvas.drawRoundRect(it, 16F, 16F, redPaint)
-
       }
 
-      Log.d(TAG, "Draw the bounding box of : ${it.toString()} Surface Res = ${width} x ${height}")
+      // Log.d(TAG, "Draw the bounding box of : ${it.toString()} Surface Res = ${width} x ${height}")
     }
 
     /** Draw a debug Rect */
@@ -739,10 +863,10 @@ class FaceBoundOverlay constructor(context: Context?,
     // canvas.drawRoundRect(valuerectF, 16F, 16F, customPaint)
   }
 
-  fun drawFaceBounds(faceBounds: List<RectF>, detected: Boolean){
+  fun drawFaceBounds(faceBounds: List<RectF>, detected: HashMap<String, String>){
     this.faceBounds.clear()
     this.faceBounds.addAll(faceBounds)
-    this.detected = detected
+    this.prediction = detected
 
     invalidate()
     // Invalid to re-draw the canvas

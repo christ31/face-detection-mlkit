@@ -8,11 +8,23 @@
     tools:context=".MainActivity">
 
     <Button
+        android:id="@+id/btn_update"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:text="UpdateStatus"
+        android:textAllCaps="false"
+        android:textSize="12sp"
+        app:layout_constraintEnd_toEndOf="parent"
+        app:layout_constraintHorizontal_bias="1.0"
+        app:layout_constraintStart_toStartOf="@+id/vertical_centerline"
+        app:layout_constraintTop_toBottomOf="@+id/btn_report" />
+
+    <Button
         android:id="@+id/capture_button"
         android:layout_width="0dp"
         android:layout_height="42dp"
 
-        android:layout_marginTop="32dp"
+        android:layout_marginTop="5dp"
         android:clickable="false"
         android:elevation="0dp"
         android:fontFamily="sans-serif-medium"
@@ -24,6 +36,7 @@
         android:typeface="sans"
         app:cornerRadius="0dp"
         app:layout_constraintEnd_toStartOf="@+id/vertical_centerline"
+        app:layout_constraintHorizontal_bias="0.0"
         app:layout_constraintStart_toStartOf="parent"
         app:layout_constraintTop_toBottomOf="@+id/video_capture_button" />
 
@@ -35,7 +48,7 @@
         app:layout_constraintDimensionRatio="3:4"
         app:layout_constraintTop_toTopOf="parent" />
 
-    <com.android.example.cameraxapp.FaceBoundOverlay
+    <com.android.example.SKRpresensi.FaceBoundOverlay
         android:id="@+id/faceBoundsOverlay"
         android:layout_width="match_parent"
         android:layout_height="0dp"
@@ -102,11 +115,12 @@
 
     <TextView
         android:id="@+id/tv_view"
-        android:layout_width="wrap_content"
+        android:layout_width="0dp"
         android:layout_height="wrap_content"
         android:text="TextView"
-        app:layout_constraintEnd_toEndOf="parent"
-        app:layout_constraintTop_toBottomOf="@+id/editTextNama" />
+        app:layout_constraintEnd_toStartOf="@+id/vertical_centerline"
+        app:layout_constraintStart_toStartOf="parent"
+        app:layout_constraintTop_toBottomOf="@+id/capture_button" />
 
     <EditText
         android:id="@+id/editTextNama"
@@ -116,6 +130,7 @@
         android:ems="10"
         android:inputType="textPersonName"
         android:text="Name"
+        android:textSize="14sp"
         app:layout_constraintEnd_toEndOf="parent"
         app:layout_constraintHorizontal_bias="1.0"
         app:layout_constraintStart_toStartOf="@+id/vertical_centerline"
@@ -125,22 +140,24 @@
         android:id="@+id/btn_report"
         android:layout_width="wrap_content"
         android:layout_height="wrap_content"
-        android:layout_marginBottom="132dp"
         android:text="AddUser"
-        app:layout_constraintBottom_toTopOf="@+id/popup_button"
+        android:textAllCaps="false"
+        android:textSize="12sp"
         app:layout_constraintEnd_toEndOf="parent"
         app:layout_constraintHorizontal_bias="0.0"
-        app:layout_constraintStart_toStartOf="@+id/vertical_centerline" />
+        app:layout_constraintStart_toStartOf="@+id/vertical_centerline"
+        app:layout_constraintTop_toBottomOf="@+id/editTextNama" />
 
     <Button
-        android:id="@+id/btn_update"
+        android:id="@+id/btn_get"
         android:layout_width="wrap_content"
         android:layout_height="wrap_content"
-        android:layout_marginBottom="92dp"
-        android:text="UpdateStatus"
-        app:layout_constraintBottom_toTopOf="@+id/popup_button"
+        android:text="Get ID"
+        android:textAllCaps="false"
+        android:textSize="12sp"
         app:layout_constraintEnd_toEndOf="parent"
-        app:layout_constraintHorizontal_bias="1.0"
-        app:layout_constraintStart_toStartOf="@+id/vertical_centerline" />
+        app:layout_constraintHorizontal_bias="0.0"
+        app:layout_constraintStart_toStartOf="@+id/vertical_centerline"
+        app:layout_constraintTop_toBottomOf="@+id/btn_update" />
 
 </androidx.constraintlayout.widget.ConstraintLayout>

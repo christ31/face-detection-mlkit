@@ -13,7 +13,7 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package com.android.example.cameraxapp
+package com.android.example.SKRpresensi
 
 import android.content.ContentResolver
 import android.content.Context
@@ -96,6 +96,7 @@ object BitmapUtils {
         val decodedBitmap =
             MediaStore.Images.Media.getBitmap(contentResolver, imageUri)
                 ?: return null
+
         val orientation = getExifOrientationTag(contentResolver, imageUri)
         var rotationDegrees = 0
         var flipX = false

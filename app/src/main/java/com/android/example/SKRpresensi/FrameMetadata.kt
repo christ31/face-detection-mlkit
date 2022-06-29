@@ -14,7 +14,7 @@
  * limitations under the License.
  */
 
-package com.android.example.cameraxapp
+package com.android.example.SKRpresensi
 
 /** Describing a frame info.  */
 class FrameMetadata private constructor(val width: Int, val height: Int, val rotation: Int) {

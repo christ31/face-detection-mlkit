@@ -1,4 +1,4 @@
-package com.android.example.cameraxapp
+package com.android.example.SKRpresensi
 
 import androidx.appcompat.app.AppCompatActivity
 import android.os.Bundle
