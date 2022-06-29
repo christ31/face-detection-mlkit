@@ -29,3 +29,6 @@ Using OpenCV in Android Studio
 
 Connecting to MySQL using Android Library 'Volley'
 - https://www.geeksforgeeks.org/volley-library-in-android/
+
+Related to ViewBinding on included layout
+- https://stackoverflow.com/a/68481692/19278731

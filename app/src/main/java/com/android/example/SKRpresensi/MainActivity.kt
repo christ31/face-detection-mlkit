@@ -26,6 +26,7 @@ import androidx.core.app.ActivityCompat
 import androidx.core.content.ContextCompat
 import androidx.core.graphics.toRectF
 import androidx.lifecycle.LifecycleOwner
+import com.android.example.SKRpresensi.databinding.ActivityBottomSheetBinding
 import com.android.example.SKRpresensi.databinding.ActivityMainBinding
 import com.android.volley.Request
 import com.android.volley.Response
@@ -36,6 +37,7 @@ import com.google.android.material.dialog.MaterialAlertDialogBuilder
 import com.google.mlkit.vision.common.InputImage
 import com.google.mlkit.vision.face.FaceDetection
 import com.google.mlkit.vision.face.FaceDetectorOptions.*
+import es.dmoral.toasty.Toasty
 import org.json.JSONException
 import org.json.JSONObject
 import org.tensorflow.lite.Interpreter
@@ -60,6 +62,7 @@ typealias LabelListener = (String) -> Unit
 
 class MainActivity : AppCompatActivity() {
   private lateinit var viewBinding: ActivityMainBinding
+
   private var imageCapture: ImageCapture? = null
   private lateinit var cameraExecutor: ExecutorService
   private lateinit var camera: Camera
@@ -68,6 +71,7 @@ class MainActivity : AppCompatActivity() {
   override fun onCreate(savedInstanceState: Bundle?) {
     super.onCreate(savedInstanceState)
     viewBinding = ActivityMainBinding.inflate(layoutInflater)
+
     setContentView(viewBinding.root)
 
     // Keep the screen awake
@@ -75,13 +79,13 @@ class MainActivity : AppCompatActivity() {
 
     // Initialize all binding variable
     val viewFinder: PreviewView = viewBinding.viewFinder
-    val popupButton: Button = viewBinding.popupButton
-    val captureButton: Button = viewBinding.imageCaptureButton
-    val kotakNama: EditText = viewBinding.editTextNama
-    val faceCapture: Button = viewBinding.captureButton
-    val report: Button = viewBinding.btnReport
-    val update: Button = viewBinding.btnUpdate
-    val get: Button = viewBinding.btnGet
+    val popupButton: Button = viewBinding.bottomSheet.popupButton
+    val captureButton: Button = viewBinding.bottomSheet.imageCaptureButton
+    val kotakNama: EditText = viewBinding.bottomSheet.editTextNama
+    val faceCapture: Button = viewBinding.bottomSheet.captureButton
+    val report: Button = viewBinding.bottomSheet.btnReport
+    val update: Button = viewBinding.bottomSheet.btnUpdate
+    val get: Button = viewBinding.bottomSheet.btnGet
 
     // For Button
     captureButton.setOnClickListener{takePhoto()}
@@ -155,7 +159,7 @@ class MainActivity : AppCompatActivity() {
         .build()
         .also {
           it.setAnalyzer(cameraExecutor, GoogleFaceDetector(this, faceBounds, viewBinding){
-            viewBinding.videoCaptureButton.text = it
+
           })
         }
 
@@ -389,6 +393,8 @@ class TFModel(val context: Context,
   private var nameDistanceHash: HashMap<String, Array<FloatArray>> = HashMap()
   private var index: Int = 0
   private var indexReg: Int = 0
+  private var indexUpdate: Int = 0
+
   private var outputs = Array(5) {FloatArray(128)} // We will store 10 images for 1 person
   private var registerState = false
   private var numFaceStored = 5
@@ -402,7 +408,6 @@ class TFModel(val context: Context,
     result["name"] = "Unknown"
     result["score"] = "999"
     result["id"] = "-1"
-
 
     // Setting up interpreter
     tfLiteInterp =
@@ -457,21 +462,21 @@ class TFModel(val context: Context,
       }
     }
 
-    val kotakNama = viewBinding.editTextNama
+    val kotakNama = viewBinding.bottomSheet.editTextNama
 
-    viewBinding.captureButton.setOnClickListener {
+    viewBinding.bottomSheet.captureButton.setOnClickListener {
       registerState = true
     }
 
-    viewBinding.btnReport.setOnClickListener {
+    viewBinding.bottomSheet.btnReport.setOnClickListener {
       val nama = kotakNama.text.toString()
       insertData(nama, "n@presensi.com", "n", "0811")
     }
-    viewBinding.btnUpdate.setOnClickListener{
+    viewBinding.bottomSheet.btnUpdate.setOnClickListener{
       val id = kotakNama.text.toString()
       updateData(id, "Hadir") // Belum Presensi
     }
-    viewBinding.btnGet.setOnClickListener {
+    viewBinding.bottomSheet.btnGet.setOnClickListener {
       val nama = kotakNama.text.toString()
       getID(nama)
     }
@@ -479,8 +484,27 @@ class TFModel(val context: Context,
 
   // Reset query and result when face is not detected
   fun resetQuery(){
-    query = HashMap()
-    result = HashMap()
+    index = 0
+    indexUpdate = 0
+    
+    Log.d("RESET", "Resetting query and result")
+
+    if(query.size > 0 || result.size > 0){
+      Log.d("RESET", "Query = $query")
+      Log.d("RESET", "Result = $result")
+
+      query = HashMap()
+      result = HashMap()
+
+      Log.d("RESET", "Query = $query")
+      Log.d("RESET", "Result = $result")
+      Log.d("RESET", "Complete")
+
+      hasilPrediction = arrayOf("Unknown", 999F, 0)
+    }
+
+    viewBinding.videoCaptureButton.text = "Looking.."
+    viewBinding.btnStatus.text = "Jangan lupa lepaskan masker"
   }
 
   /** Send data to mySQL server */
@@ -542,11 +566,10 @@ class TFModel(val context: Context,
       url,
       Response.Listener {
         Log.e("VOLLEY", it.toString())
-        viewBinding.tvView.text = it
         query["id"] = it.toString()
       },
       Response.ErrorListener {
-        Toast.makeText(context, "Fail to get response = $it", Toast.LENGTH_LONG).show()
+        Toasty.error(context, "Fail to get response = $it", Toast.LENGTH_SHORT).show()
       }){
       override fun getParams(): MutableMap<String, String>? {
         return parameters
@@ -563,10 +586,9 @@ class TFModel(val context: Context,
       url,
       Response.Listener {
         Log.e("VOLLEY", it.toString())
-        viewBinding.tvView.text = it
 //        Toast.makeText(context, "Query Status = $it", Toast.LENGTH_LONG).show()
 
-        parameters.forEach { id, kolom ->
+        parameters.forEach { (_, kolom) ->
           if(kolom == "status"){
             query[kolom] = it
           }
@@ -576,7 +598,7 @@ class TFModel(val context: Context,
         }
       },
       Response.ErrorListener {
-        Toast.makeText(context, "Fail to get response = $it", Toast.LENGTH_LONG).show()
+        Toasty.error(context, "Fail to get response = $it", Toast.LENGTH_SHORT).show()
       }){
       override fun getParams(): MutableMap<String, String>? {
         return parameters
@@ -595,14 +617,14 @@ class TFModel(val context: Context,
         Log.e("REGISTER", it)
         try{
           val message = JSONObject(it)
-          viewBinding.tvView.text = it.toString()
-          Toast.makeText(context, message.getString("message"), Toast.LENGTH_SHORT).show()
+          Log.d("POST", message.getString("message"))
         } catch (e: JSONException){
           e.printStackTrace()
         }},
       // https://stackoverflow.com/questions/45940861/android-8-cleartext-http-traffic-not-permitted
       Response.ErrorListener {
         Toast.makeText(context, "Fail to get response = $it", Toast.LENGTH_LONG).show()
+        Toasty.error(context, "Fail to get response = $it", Toast.LENGTH_SHORT).show()
       }){
       override fun getParams(): MutableMap<String, String>? {
         return parameters
@@ -621,14 +643,6 @@ class TFModel(val context: Context,
   }
 
   fun analyze(image: ImageProxy, faces: Int): HashMap<String, String> {
-    // Save all the result in an array
-    result["faceCount"] = "ada"
-
-    // Emptying query if faces not found
-    if(faces == 0){
-      result["faceCount"] = "null"
-    }
-
     bitmapBuffer = BitmapUtils.getBitmap(image)!!
 //      BitmapUtils.saveBitmap(context, bitmapBuffer, "BitmapTF.png")
 
@@ -645,7 +659,7 @@ class TFModel(val context: Context,
 
     // Save the embed to storage
     // Only Register if the button is pressed
-    var name = viewBinding.editTextNama.text.toString()
+    var name = viewBinding.bottomSheet.editTextNama.text.toString()
 
     if(registerState){
       registerEmbed(outputBuffer, name)
@@ -659,40 +673,62 @@ class TFModel(val context: Context,
     /** Run every 5 or 10 clock to save resources */
     if((index+1) % 5 == 0){
       hasilPrediction = L2Norm(outputBuffer)
-    }
 
-    // Get result and save
-    val (predikNama, predikScore, pictureID) = hasilPrediction
-    result["score"] = predikScore.toString()
+      // Get result and save
+      val (predikNama, predikScore, pictureID) = hasilPrediction
+      result["score"] = predikScore.toString()
 
-    if(predikScore as Float <= ACCURACY_THRESHOLD){
-      result["detected"] = "Yes"
-      result["name"] = predikNama.toString()
+      if(predikScore as Float <= ACCURACY_THRESHOLD){
+        result["detected"] = "Yes"
+        result["name"] = predikNama.toString()
 
-      // getID from name
-      getID(result["name"]!!)
+        // getID from name
+        getID(result["name"]!!)
 
-      Log.d("RESULT", result.toString())
-      Log.d("QUERY", query.toString())
-      if(query.size > 0){
-        get(query["id"]!!, "status")
-//        get(query["id"]!!, "nama")
+        Log.d("RESULT", result.toString())
+        Log.d("QUERY", query.toString())
+        if(query["id"] != null){
+          get(query["id"]!!, "status")
+          result["id"] = query["id"]!!
 
-        if(query["status"] != null){
-          result["status"] = query["status"]!!
+          if(query["status"] != null){
+            result["status"] = query["status"]!!
+
+            viewBinding.videoCaptureButton.text = result["name"] + " (" + query["id"] + ")"
+            viewBinding.btnStatus.text = query["status"]
+
+            if(query["status"] == "Belum Presensi"){
+              viewBinding.btnStatus.setBackgroundColor(Color.parseColor("#74B4FF"))
+              indexUpdate += 1
+            } else if(query["status"] == "Hadir"){
+              viewBinding.btnStatus.setBackgroundColor(Color.parseColor("#FF0000"))
+            }
+            else {
+              viewBinding.btnStatus.text = "Processing..."
+            }
+          }
         }
       }
     }
 
-    viewBinding.btnGet.text = query["status"]
-    viewBinding.btnUpdate.text = "ID: " + query["id"]
-    viewBinding.btnReport.text = result["name"]
+    // Jika dikenali 3 kali, maka update status menjadi hadir
+    if(indexUpdate == 3){
+      updateData(query["id"]!!, "Hadir")
+      Toasty.info(context, result["name"] + "berhasil melakukan presensi", Toast.LENGTH_LONG).show()
+      indexUpdate = 0
+    }
 
+    viewBinding.bottomSheet.btnGet.text = query["status"]
+    viewBinding.bottomSheet.btnUpdate.text = "ID: " + query["id"]
+    viewBinding.bottomSheet.btnReport.text = result["name"]
 
     // Debug Listener
-    var iniLog = "Predicting: ${predikNama} [${predikScore}] | Clock: $index | Face Registered: ${nameDistanceHash.entries.size} " +
-        "| IndexReg: $indexReg"
-    listener(iniLog)
+    var iniLog = "Predicting: ${result["name"]} [${result["score"]}] | Face Registered: ${nameDistanceHash.entries.size} " +
+        "| IndexReg: $indexReg | IndexUpdate: $indexUpdate"
+    //    listener(iniLog)
+
+    viewBinding.bottomSheet.tvView.text = iniLog
+    viewBinding.bottomSheet.tvClock.text = "Clock: $index"
 
     if(index >= 120){
       index = 0
@@ -758,7 +794,8 @@ class TFModel(val context: Context,
       val fileInputStream = FileInputStream(context.filesDir.toString() + filename)
       val objectInputStream = ObjectInputStream(fileInputStream)
       myHashMap = objectInputStream.readObject() as HashMap<String, Array<FloatArray>>
-      Toast.makeText(context, "File Loaded Succesfully", Toast.LENGTH_SHORT).show()
+//      Toast.makeText(context, "File Loaded Succesfully", Toast.LENGTH_SHORT).show()
+      Toasty.success(context, "File Loaded Successfully", Toast.LENGTH_SHORT).show()
     } catch (e: IOException) {
       Toast.makeText(context, "Empty embed, please register new faces", Toast.LENGTH_SHORT).show()
       e.printStackTrace()
@@ -777,7 +814,7 @@ class TFModel(val context: Context,
       indexReg += 1
 
       if(indexReg == numFaceStored){
-        viewBinding.captureButton.text = "Save to DB"
+        viewBinding.bottomSheet.captureButton.text = "Save to DB"
       }
     } else if (indexReg == numFaceStored){
       saveHashInternal(context, nameDistanceHash)
@@ -786,7 +823,7 @@ class TFModel(val context: Context,
       // Clear all values in outputs
       outputs = Array(5){FloatArray(128)}
 
-      viewBinding.captureButton.text = "Capture Face"
+      viewBinding.bottomSheet.captureButton.text = "Capture Face"
       Toast.makeText(context, "$name is saved", Toast.LENGTH_SHORT).show()
     }
   }

@@ -69,11 +69,13 @@ dependencies {
     implementation "org.tensorflow:tensorflow-lite-gpu:${tensorflowlite_ver}"
     implementation "org.tensorflow:tensorflow-lite-support:0.4.1"
 
-    // Add Retrofit for mySQL connector
-
     // Add Volley for connecting to DB
     implementation "com.android.volley:volley:1.2.1"
 
     // Fix duplicate class from com.google.common.util.concurrent.ListenableFuture with adding new Dependencies
     implementation 'com.google.guava:guava:31.1-jre'
+
+    // Add Toasty
+    implementation 'com.github.GrenderG:Toasty:1.5.2'
+
 }
