@@ -7,15 +7,16 @@
     android:layout_height="320dp"
     android:layout_width="match_parent"
     app:layout_behavior="com.google.android.material.bottomsheet.BottomSheetBehavior"
-    app:behavior_peekHeight="64dp"
+    app:behavior_hideable="true"
     app:behavior_skipCollapsed="true"
     android:background="@drawable/rounded"
     >
+
     <androidx.constraintlayout.widget.ConstraintLayout
         android:id="@+id/constraint_bottom_sheet"
         android:layout_width="match_parent"
         android:layout_height="match_parent"
-        >
+        android:visibility="visible">
 
         <ImageView
             android:id="@+id/imageView"
@@ -43,7 +44,7 @@
             tools:layout_editor_absoluteX="0dp"></TextView>
 
         <Button
-            android:id="@+id/btn_report"
+            android:id="@+id/btn_addUser"
             android:layout_width="wrap_content"
             android:layout_height="30dp"
             android:insetTop="0dp"
@@ -64,7 +65,7 @@
             android:textAllCaps="false"
             android:textSize="12sp"
             app:layout_constraintEnd_toEndOf="parent"
-            app:layout_constraintTop_toBottomOf="@+id/btn_report" />
+            app:layout_constraintTop_toBottomOf="@+id/btn_addUser" />
 
         <Button
             android:id="@+id/btn_get"

@@ -1,5 +1,5 @@
 <resources>
-    <string name="app_name">CameraXApp</string>
+    <string name="app_name">SKR-Presensi</string>
     <string name="take_photo">Take Photo</string>
     <string name="start_capture">Listening...</string>
     <string name="stop_capture">Stop Capture</string>
@@ -14,6 +14,8 @@
     <string name="hello_first_fragment">Hello first fragment</string>
     <string name="hello_second_fragment">Hello second fragment. Arg: %1$s</string>
     <string name="face_capture">Capture Face</string>
+    <string name="cb_opsi1">Tampilan Nama dan ID salah</string>
+    <string name="cb_opsi2">Tidak ada bounding box di wajah</string>
 
     <string-array name="planets_array">
         <item>Mercury</item>

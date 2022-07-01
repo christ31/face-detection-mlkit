@@ -14,7 +14,7 @@
  * limitations under the License.
  */
 
-package com.android.example.SKRpresensi
+package com.android.example.SKRpresensi.libraryFromGoogle
 
 /** Describing a frame info.  */
 class FrameMetadata private constructor(val width: Int, val height: Int, val rotation: Int) {

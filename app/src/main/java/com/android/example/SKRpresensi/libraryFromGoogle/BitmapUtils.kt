@@ -13,7 +13,7 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package com.android.example.SKRpresensi
+package com.android.example.SKRpresensi.libraryFromGoogle
 
 import android.content.ContentResolver
 import android.content.Context

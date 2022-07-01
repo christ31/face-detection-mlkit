@@ -21,11 +21,6 @@
         android:theme="@style/Theme.CameraXApp">
 
         <activity
-            android:name="com.android.example.SKRpresensi.PopUpWindow"
-            android:exported="false"
-            android:label="@string/title_activity_pop_up_window"
-            android:theme="@style/Theme.CameraXApp.NoActionBar" />
-        <activity
             android:name="com.android.example.SKRpresensi.MainActivity"
             android:exported="true">
             <intent-filter>

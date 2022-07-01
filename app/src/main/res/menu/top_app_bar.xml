@@ -1,0 +1,21 @@
+<?xml version="1.0" encoding="utf-8"?>
+<menu xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto">
+
+    <item
+        android:id="@+id/adminItem"
+        android:icon="@drawable/ic_baseline_admin_panel_settings_24"
+        android:title="Admin Settings"
+        android:iconTint="@color/white"
+        android:contentDescription="Buka panel admin"
+        app:showAsAction="ifRoom" />
+
+    <item
+        android:id="@+id/reportItem"
+        android:contentDescription="Lapor Kesalahan"
+        android:icon="@drawable/ic_baseline_report_24"
+        android:iconTint="@color/c31_red"
+        android:title="Report"
+        app:showAsAction="ifRoom" />
+
+</menu>

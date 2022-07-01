@@ -5,12 +5,19 @@
       <map>
         <entry key="../../../../layout/custom_preview.xml" value="0.1685185185185185" />
         <entry key="../../Programs/AndroidSDK/platforms/android-32/data/res/layout/simple_spinner_dropdown_item.xml" value="0.18618421052631579" />
+        <entry key="app/src/main/res/drawable/ic_baseline_admin_panel_settings_24.xml" value="0.1905" />
         <entry key="app/src/main/res/drawable/ic_baseline_arrow_forward_ios_24.xml" value="0.2155" />
         <entry key="app/src/main/res/drawable/rounded.xml" value="0.2285" />
+        <entry key="app/src/main/res/drawable/roundedButblue.xml" value="0.301" />
+        <entry key="app/src/main/res/drawable/roundedgreen.xml" value="0.2295" />
+        <entry key="app/src/main/res/drawable/roundedred.xml" value="0.301" />
         <entry key="app/src/main/res/layout/activity_bottom_sheet.xml" value="0.22" />
-        <entry key="app/src/main/res/layout/activity_main.xml" value="0.22730263157894737" />
+        <entry key="app/src/main/res/layout/activity_login_sheet.xml" value="0.2" />
+        <entry key="app/src/main/res/layout/activity_main.xml" value="0.2427536231884058" />
         <entry key="app/src/main/res/layout/activity_pop_up_window.xml" value="0.29628046173578454" />
+        <entry key="app/src/main/res/layout/activity_report_sheet.xml" value="0.22730263157894737" />
         <entry key="app/src/main/res/layout/fragment_first.xml" value="0.29628046173578454" />
+        <entry key="app/src/main/res/menu/top_app_bar.xml" value="0.25" />
       </map>
     </option>
   </component>
@@ -23,7 +30,7 @@
   <component name="VisualizationToolProject">
     <option name="state">
       <ProjectState>
-        <option name="scale" value="0.2" />
+        <option name="scale" value="0.22730263157894737" />
       </ProjectState>
     </option>
   </component>
