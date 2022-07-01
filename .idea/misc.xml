@@ -4,9 +4,10 @@
     <option name="filePathToZoomLevelMap">
       <map>
         <entry key="../../../../layout/custom_preview.xml" value="0.1685185185185185" />
+        <entry key="../../Programs/AndroidSDK/platforms/android-32/data/res/layout/simple_spinner_dropdown_item.xml" value="0.18618421052631579" />
         <entry key="app/src/main/res/drawable/ic_baseline_arrow_forward_ios_24.xml" value="0.2155" />
         <entry key="app/src/main/res/drawable/rounded.xml" value="0.2285" />
-        <entry key="app/src/main/res/layout/activity_bottom_sheet.xml" value="0.6728515625" />
+        <entry key="app/src/main/res/layout/activity_bottom_sheet.xml" value="0.22" />
         <entry key="app/src/main/res/layout/activity_main.xml" value="0.22730263157894737" />
         <entry key="app/src/main/res/layout/activity_pop_up_window.xml" value="0.29628046173578454" />
         <entry key="app/src/main/res/layout/fragment_first.xml" value="0.29628046173578454" />

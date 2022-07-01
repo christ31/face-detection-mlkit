@@ -39,11 +39,10 @@
             />
 
 
-
         <Button
             android:id="@+id/video_capture_button"
             android:layout_width="0dp"
-            android:layout_height="42dp"
+            android:layout_height="62dp"
 
             android:clickable="false"
             android:elevation="0dp"
@@ -52,7 +51,7 @@
             android:insetBottom="0dp"
             android:text="@string/start_capture"
             android:textAllCaps="false"
-            android:textSize="20sp"
+            android:textSize="24sp"
             android:typeface="sans"
             app:cornerRadius="0dp"
             app:layout_constraintEnd_toEndOf="parent"
@@ -61,20 +60,20 @@
             app:layout_constraintTop_toBottomOf="@+id/viewFinder" />
 
 
-
         <Button
             android:id="@+id/btn_status"
             android:layout_width="0dp"
-            android:layout_height="42dp"
+            android:layout_height="62dp"
             android:clickable="false"
             android:foregroundTintMode="add"
             android:insetLeft="0dp"
             android:insetTop="0dp"
             android:insetRight="0dp"
             android:insetBottom="0dp"
+            android:backgroundTint="#FF5722"
             android:text="Status"
             android:textAllCaps="false"
-            android:textSize="20sp"
+            android:textSize="24sp"
             app:cornerRadius="0dp"
             app:layout_constraintEnd_toEndOf="parent"
             app:layout_constraintStart_toStartOf="parent"

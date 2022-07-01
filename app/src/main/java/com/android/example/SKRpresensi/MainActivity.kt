@@ -2,6 +2,7 @@ package com.android.example.SKRpresensi
 
 import android.Manifest
 import android.annotation.SuppressLint
+import android.app.Activity
 import android.content.ContentValues
 import android.content.Context
 import android.content.pm.PackageManager
@@ -14,9 +15,7 @@ import android.util.Log
 import android.util.Size
 import android.view.View
 import android.view.WindowManager
-import android.widget.Button
-import android.widget.EditText
-import android.widget.Toast
+import android.widget.*
 import androidx.appcompat.app.AppCompatActivity
 import androidx.camera.core.*
 import androidx.camera.core.Camera
@@ -30,6 +29,7 @@ import com.android.example.SKRpresensi.databinding.ActivityBottomSheetBinding
 import com.android.example.SKRpresensi.databinding.ActivityMainBinding
 import com.android.volley.Request
 import com.android.volley.Response
+import com.android.volley.toolbox.JsonArrayRequest
 import com.android.volley.toolbox.JsonObjectRequest
 import com.android.volley.toolbox.StringRequest
 import com.android.volley.toolbox.Volley
@@ -60,13 +60,15 @@ import kotlin.math.sqrt
 
 typealias LabelListener = (String) -> Unit
 
-class MainActivity : AppCompatActivity() {
+class MainActivity : AppCompatActivity(), AdapterView.OnItemSelectedListener {
   private lateinit var viewBinding: ActivityMainBinding
 
   private var imageCapture: ImageCapture? = null
   private lateinit var cameraExecutor: ExecutorService
   private lateinit var camera: Camera
   private var registerState: Boolean = false
+
+  private var listRuang = arrayOfNulls<String>(5)
 
   override fun onCreate(savedInstanceState: Bundle?) {
     super.onCreate(savedInstanceState)
@@ -86,11 +88,23 @@ class MainActivity : AppCompatActivity() {
     val report: Button = viewBinding.bottomSheet.btnReport
     val update: Button = viewBinding.bottomSheet.btnUpdate
     val get: Button = viewBinding.bottomSheet.btnGet
+    val dropdownRuang: Spinner = viewBinding.bottomSheet.spnRuang
 
     // For Button
     captureButton.setOnClickListener{takePhoto()}
     popupButton.setOnClickListener{showPopUpMaterial()}
     faceCapture.setOnClickListener{registerFace()}
+
+    // Check for connection to DB
+    getRuang()
+
+    // If conn = true, then spinner
+    var listofitems = arrayOf("Item 1", "Item 2", "Item 3", "Item 3", "Item 3")
+    dropdownRuang.onItemSelectedListener = this
+
+    val arrayAdapter = ArrayAdapter(this, android.R.layout.simple_spinner_item, listofitems)
+    arrayAdapter.setDropDownViewResource(android.R.layout.simple_spinner_dropdown_item)
+    dropdownRuang.adapter = arrayAdapter
 
     // Request camera permissions
     if (allPermissionsGranted()) {
@@ -203,6 +217,83 @@ class MainActivity : AppCompatActivity() {
     }
   }
 
+  // Check all REQUIRED_PERMISSION that declared in the object companion,
+  // check if all the permission is allowed by users
+  private fun allPermissionsGranted() = REQUIRED_PERMISSIONS.all {
+    ContextCompat.checkSelfPermission(
+      baseContext, it
+    ) == PackageManager.PERMISSION_GRANTED
+  }
+
+  override fun onDestroy() {
+    super.onDestroy()
+    cameraExecutor.shutdown()
+  }
+
+  /** TF Lite */
+  // If button is pressed, send true to TFModel and begin registering faces to DB
+  private fun registerFace(){
+    this.registerState = true
+  }
+
+  /** Spinner */
+  override fun onItemSelected(p0: AdapterView<*>?, p1: View?, p2: Int, p3: Long) {
+    Toasty.info(this@MainActivity, "${listRuang[p2]} is Selected", Toast.LENGTH_SHORT).show()
+  }
+
+  override fun onNothingSelected(p0: AdapterView<*>?) {
+    TODO("Not yet implemented")
+  }
+
+  private fun getRuang(){
+    val url = "http://192.168.100.7/connectToMySQL/getRuang.php"
+    val queue = Volley.newRequestQueue(this)
+    val request = requestGetRuang(url)
+    queue.add(request) // add a request to the dispatch queue
+  }
+
+  private fun reloadSpinner(){
+    // If conn = true, then spinner
+    Log.e("RELOAD SPINNER", "listruang: ${listRuang[0]}${listRuang[1]}${listRuang[2]}${listRuang[3]}${listRuang[4]}")
+    var arrayAdapter = ArrayAdapter(this@MainActivity, android.R.layout.simple_spinner_item, listRuang)
+    arrayAdapter.setDropDownViewResource(android.R.layout.simple_spinner_dropdown_item)
+    viewBinding.bottomSheet.spnRuang.adapter = arrayAdapter
+  }
+
+  private fun requestGetRuang(url: String): JsonArrayRequest {
+    val request = JsonArrayRequest(
+      Request.Method.GET,
+      url,
+      null,
+      {
+        Log.e("VOLLEY", it.toString())
+        Toasty.success(this@MainActivity, "${it.length()} Ruang Loaded", Toast.LENGTH_LONG).show()
+        listRuang = arrayOfNulls(it.length())
+        for (i in 0 until it.length()){
+          listRuang[i] = it.getString(i)
+        }
+        Log.e("LIST RUANG", listRuang.toString())
+        reloadSpinner()
+      },
+      {
+        Log.e("VOLLEY", it.toString())
+        Toasty.error(this@MainActivity, "Fail to get response = $it", Toast.LENGTH_LONG).show()
+      }
+    )
+    return request
+  }
+
+  /** Testing Stuff */
+  private fun showPopUpMaterial() {
+    val context = this
+    MaterialAlertDialogBuilder(context)
+      .setTitle("Title Pop Up Material")
+      .setMessage("Ini test pesan")
+      .setNeutralButton("Cancel"){ dialog, which ->}
+      .setPositiveButton("Ok"){ dialog, which ->}
+      .show()
+  }
+
   private fun takePhoto() {
     // Get a stable reference of the modifiable image capture use case
     val imageCapture = imageCapture ?: return
@@ -250,36 +341,7 @@ class MainActivity : AppCompatActivity() {
     )
   }
 
-  // Check all REQUIRED_PERMISSION that declared in the object companion,
-  // check if all the permission is allowed by users
-  private fun allPermissionsGranted() = REQUIRED_PERMISSIONS.all {
-    ContextCompat.checkSelfPermission(
-      baseContext, it
-    ) == PackageManager.PERMISSION_GRANTED
-  }
-
-  override fun onDestroy() {
-    super.onDestroy()
-    cameraExecutor.shutdown()
-  }
-
-  /** Testing Stuff */
-  private fun showPopUpMaterial() {
-    val context = this
-    MaterialAlertDialogBuilder(context)
-      .setTitle("Title Pop Up Material")
-      .setMessage("Ini test pesan")
-      .setNeutralButton("Cancel"){ dialog, which ->}
-      .setPositiveButton("Ok"){ dialog, which ->}
-      .show()
-  }
-
-  // If button is pressed, send true to TFModel and begin registering faces to DB
-  private fun registerFace(){
-    this.registerState = true
-  }
-
-
+  /** Companion Object */
   // Companion Object -> An object declaration inside a class
   companion object {
     private const val TAG = "CameraXApp"
@@ -445,9 +507,9 @@ class TFModel(val context: Context,
     }
 
     nameDistanceHash.forEach{ it ->
-      // Log.d(TAG, "Kunci ${it.key} = ")
+       Log.d(TAG, "Kunci ${it.key} = ")
       it.value.forEach {
-        // Log.d(TAG, "128-D Values = ${it[0]}, ${it[1]}, ${it[2]}, ..., ${it[127]}")
+         Log.d(TAG, "128-D Values = ${it[0]}, ${it[1]}, ${it[2]}, ..., ${it[127]}")
 
         var lowest = 10F
         var highest = -10F
@@ -458,11 +520,22 @@ class TFModel(val context: Context,
             highest = it
           }
         }
-        // Log.d(TAG, "Lowest Value = $lowest | Highest Value = $highest")
+         Log.d(TAG, "Lowest Value = $lowest | Highest Value = $highest")
       }
     }
 
+    // Button viewBinding
     val kotakNama = viewBinding.bottomSheet.editTextNama
+    val idname = viewBinding.bottomSheet.etId
+    val pass = viewBinding.bottomSheet.etPass
+    val loginbtn = viewBinding.bottomSheet.btnLogin
+
+    loginbtn.setOnClickListener {
+      // call function to login and update status to "Hadir"
+      val id = idname.text.toString()
+      val pass = pass.text.toString()
+      updateDataWithPass(id, "Hadir", pass)
+    }
 
     viewBinding.bottomSheet.captureButton.setOnClickListener {
       registerState = true
@@ -529,6 +602,19 @@ class TFModel(val context: Context,
     val parameters: MutableMap<String, String> = HashMap()
     parameters["idP"] = id
     parameters["statusP"] = status
+
+    val request = requestPost(url, parameters)
+
+    queue.add(request)
+  }
+
+  private fun updateDataWithPass(id: String, status: String, pass: String){
+    val url = "http://192.168.100.7/connectToMySQL/updatewithPass.php"
+    val queue = Volley.newRequestQueue(context)
+    val parameters: MutableMap<String, String> = HashMap()
+    parameters["idP"] = id
+    parameters["statusP"] = status
+    parameters["passP"] = pass
 
     val request = requestPost(url, parameters)
 
@@ -617,13 +703,13 @@ class TFModel(val context: Context,
         Log.e("REGISTER", it)
         try{
           val message = JSONObject(it)
+          Toasty.info(context, message.getString("message")).show()
           Log.d("POST", message.getString("message"))
         } catch (e: JSONException){
           e.printStackTrace()
         }},
       // https://stackoverflow.com/questions/45940861/android-8-cleartext-http-traffic-not-permitted
       Response.ErrorListener {
-        Toast.makeText(context, "Fail to get response = $it", Toast.LENGTH_LONG).show()
         Toasty.error(context, "Fail to get response = $it", Toast.LENGTH_SHORT).show()
       }){
       override fun getParams(): MutableMap<String, String>? {
@@ -643,35 +729,34 @@ class TFModel(val context: Context,
   }
 
   fun analyze(image: ImageProxy, faces: Int): HashMap<String, String> {
-    bitmapBuffer = BitmapUtils.getBitmap(image)!!
-//      BitmapUtils.saveBitmap(context, bitmapBuffer, "BitmapTF.png")
-
-    bitmapBuffer = BitmapUtils.cropBitmap(bitmapBuffer, faceBounds)
-//      BitmapUtils.saveBitmap(context, bitmapBuffer, "BitmapCropTF.png")
-
-    // outputBuffer should be an array of FloatArray
-    // Create an array with 1 size, and fill it with 128 FloatArray
-    // outputBuffer[0] = [128 FloatArray]
-    var tfImageBuffer = bitmapToBuffer(bitmapBuffer)
-    var outputBuffer = Array(1) {FloatArray(128)}
-    tfLiteInterp.run(tfImageBuffer, outputBuffer)
-    // Log.d(TAG, "TFLite Prediction is: " + outputBuffer.size)
-
-    // Save the embed to storage
-    // Only Register if the button is pressed
-    var name = viewBinding.bottomSheet.editTextNama.text.toString()
-
-    if(registerState){
-      registerEmbed(outputBuffer, name)
-      registerState = false
-    }
-
     // Comparing faces using L2 Norm
     // Only compare if index is incrementing
     // L2 Norm = sqrt( SumEach( values^2 ) )
 
     /** Run every 5 or 10 clock to save resources */
-    if((index+1) % 5 == 0){
+    if((index+1) % 20 == 0){
+      bitmapBuffer = BitmapUtils.getBitmap(image)!!
+//      BitmapUtils.saveBitmap(context, bitmapBuffer, "BitmapTF.png")
+
+      bitmapBuffer = BitmapUtils.cropBitmap(bitmapBuffer, faceBounds)
+//      BitmapUtils.saveBitmap(context, bitmapBuffer, "BitmapCropTF.png")
+
+      // outputBuffer should be an array of FloatArray
+      // Create an array with 1 size, and fill it with 128 FloatArray
+      // outputBuffer[0] = [128 FloatArray]
+      var tfImageBuffer = bitmapToBuffer(bitmapBuffer)
+      var outputBuffer = Array(1) {FloatArray(128)}
+      tfLiteInterp.run(tfImageBuffer, outputBuffer)
+
+      // Save the embed to storage
+      // Only Register if the button is pressed
+      var name = viewBinding.bottomSheet.editTextNama.text.toString()
+
+      if(registerState){
+        registerEmbed(outputBuffer, name)
+        registerState = false
+      }
+
       hasilPrediction = L2Norm(outputBuffer)
 
       // Get result and save
@@ -714,7 +799,7 @@ class TFModel(val context: Context,
     // Jika dikenali 3 kali, maka update status menjadi hadir
     if(indexUpdate == 3){
       updateData(query["id"]!!, "Hadir")
-      Toasty.info(context, result["name"] + "berhasil melakukan presensi", Toast.LENGTH_LONG).show()
+      Toasty.info(context, result["name"] + " berhasil melakukan presensi", Toast.LENGTH_LONG).show()
       indexUpdate = 0
     }
 
@@ -910,3 +995,4 @@ class FaceBoundOverlay constructor(context: Context?,
     // Method onDraw will be called with new data.
   }
 }
+
