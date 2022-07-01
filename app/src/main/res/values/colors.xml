@@ -12,4 +12,8 @@
     <color name="c31_secondary">#FF8800</color>
     <color name="c31_secondary1">#FFA339</color>
     <color name="c31_red">#ba000d</color>
+
+    <color name="blue">#0000FF</color>
+    <color name="gray">#888</color>
+    <color name="lightGray">#EEE</color>
 </resources>

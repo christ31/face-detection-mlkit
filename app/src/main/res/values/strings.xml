@@ -17,6 +17,9 @@
     <string name="cb_opsi1">Tampilan Nama dan ID salah</string>
     <string name="cb_opsi2">Tidak ada bounding box di wajah</string>
 
+    <string name="back"><![CDATA[<-]]></string>
+    <string name="forward"><![CDATA[->]]></string>
+
     <string-array name="planets_array">
         <item>Mercury</item>
         <item>Venus</item>
