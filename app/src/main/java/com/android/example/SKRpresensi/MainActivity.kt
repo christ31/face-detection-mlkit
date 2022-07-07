@@ -1,14 +1,15 @@
 package com.android.example.SKRpresensi
 
 import android.Manifest
-import android.annotation.SuppressLint
 import android.content.ContentValues
 import android.content.Context
 import android.content.pm.PackageManager
 import android.graphics.*
+import android.net.wifi.WifiManager
 import android.os.Build
 import android.os.Bundle
 import android.provider.MediaStore
+import android.text.TextUtils
 import android.util.AttributeSet
 import android.util.Log
 import android.util.Size
@@ -31,14 +32,17 @@ import com.android.volley.toolbox.StringRequest
 import com.android.volley.toolbox.Volley
 import com.google.android.material.bottomsheet.BottomSheetBehavior
 import com.google.android.material.dialog.MaterialAlertDialogBuilder
+import com.google.gson.Gson
 import es.dmoral.toasty.Toasty
 import org.json.JSONException
 import org.json.JSONObject
+import java.io.FileInputStream
+import java.io.IOException
+import java.io.ObjectInputStream
 import java.text.SimpleDateFormat
 import java.util.*
 import java.util.concurrent.ExecutorService
 import java.util.concurrent.Executors
-import kotlin.collections.HashMap
 
 typealias LabelListener = (String) -> Unit
 
@@ -67,7 +71,7 @@ class MainActivity : AppCompatActivity(), AdapterView.OnItemSelectedListener {
     val dropdownRuang: Spinner = viewBinding.bottomSheet.spnRuang
     val topBar = viewBinding.topAppBar
     val reportBtn: Button = viewBinding.reportSheet.btnLapor
-    val showReportSheet = viewBinding.btnShowLapor
+    val showReportSheet = viewBinding.bottomSheet.btnShowLapor
     val reportbottombehavior = BottomSheetBehavior.from(viewBinding.reportSheet.standardReportSheet)
     val radioButton = viewBinding.reportSheet.RGoup
 
@@ -76,6 +80,9 @@ class MainActivity : AppCompatActivity(), AdapterView.OnItemSelectedListener {
     popupButton.setOnClickListener{showPopUpMaterial()}
     showReportSheet.setOnClickListener{showReportSheet(reportbottombehavior)}
     reportBtn.setOnClickListener { laporSekarang() }
+
+    // Testing
+    Log.d("MAC", getDeviceName().toString())
 
     // Bottom Sheet
     val adminbottombehavior = BottomSheetBehavior.from(viewBinding.bottomSheet.standardBottomSheet)
@@ -261,7 +268,7 @@ class MainActivity : AppCompatActivity(), AdapterView.OnItemSelectedListener {
   }
 
   private fun insertLaporan(ref: String,  jenis: String){
-    val url = "http://192.168.100.7/connectToMySQL/addLaporan.php"
+    val url = "https://c31.website/addLaporan.php"
     val queue = Volley.newRequestQueue(this)
     val parameters: MutableMap<String, String> = HashMap()
     parameters["refP"] = "#$ref"
@@ -311,7 +318,7 @@ class MainActivity : AppCompatActivity(), AdapterView.OnItemSelectedListener {
   }
 
   private fun getRuang(){
-    val url = "http://192.168.100.7/connectToMySQL/getRuang.php"
+    val url = "https://c31.website/getRuang.php" //New Migrate
     val queue = Volley.newRequestQueue(this)
     val request = requestGetRuang(url)
     queue.add(request) // add a request to the dispatch queue
@@ -334,10 +341,23 @@ class MainActivity : AppCompatActivity(), AdapterView.OnItemSelectedListener {
         Log.e("VOLLEY", it.toString())
         Toasty.success(this@MainActivity, "${it.length()} Ruang Loaded", Toast.LENGTH_LONG).show()
         listRuang = arrayOfNulls(it.length())
+//        var listRuang2 = arrayOfNulls<String>(it.length())
+//
+//
+//        val arrayJson = JSONArray(it)
+//
+//        for (i in 0 until arrayJson.length()){
+//          var objectJson = arrayJson.getJSONObject(i)
+//          listRuang2 = arrayOf(objectJson.getString("locId"))
+//        }
+
+
         for (i in 0 until it.length()){
           listRuang[i] = it.getString(i)
         }
-        Log.e("LIST RUANG", listRuang.toString())
+//        Log.e("LIST RUANG | ", listRuang2.toString())
+        Log.e("IT | ", it.toString())
+
         reloadSpinner()
       },
       {
@@ -349,6 +369,42 @@ class MainActivity : AppCompatActivity(), AdapterView.OnItemSelectedListener {
   }
 
   /** Testing Stuff */
+  // Get device MAC Address
+  fun getMac(context: Context): String {
+    val manager = context.getSystemService(Context.WIFI_SERVICE) as WifiManager
+    val info = manager.connectionInfo
+    return info.macAddress.toUpperCase()
+  }
+
+  /** Returns the consumer friendly device name  */
+  fun getDeviceName(): String? {
+    val manufacturer = Build.MANUFACTURER
+    val model = Build.MODEL
+    return if (model.startsWith(manufacturer)) {
+      capitalize(model)
+    } else capitalize(manufacturer) + " " + model
+  }
+
+  private fun capitalize(str: String): String {
+    if (TextUtils.isEmpty(str)) {
+      return str
+    }
+    val arr = str.toCharArray()
+    var capitalizeNext = true
+    val phrase = StringBuilder()
+    for (c in arr) {
+      if (capitalizeNext && Character.isLetter(c)) {
+        phrase.append(c.uppercaseChar())
+        capitalizeNext = false
+        continue
+      } else if (Character.isWhitespace(c)) {
+        capitalizeNext = true
+      }
+      phrase.append(c)
+    }
+    return phrase.toString()
+  }
+
   private fun showPopUpMaterial() {
     val context = this
     MaterialAlertDialogBuilder(context)
@@ -419,6 +475,111 @@ class MainActivity : AppCompatActivity(), AdapterView.OnItemSelectedListener {
     )
   }
 
+  fun uploadEmbedToDBfromFile(){
+    // Baca file embed
+    val embedding = loadHashInternal(this, "/FaceEmbeddings V5 Zoom in.c31")
+    val gson = Gson()
+
+    val embedString = arrayOfNulls<String>(5)
+
+    // Ambil semua value dengan loop
+    var index = 0
+    var embed = "embed0"
+    embedding.forEach { peoplename, arrayOfFloatArrays ->
+      var floatArraytoJson = gson.toJson(arrayOfFloatArrays)
+
+      embedString[index]=floatArraytoJson
+      // Update ke DB as JSON Object
+      embed = embed + index
+      updateJsonData(peoplename, floatArraytoJson, embed)
+      index += 1
+      Log.e("GSON JSON", "JSON dari $peoplename = $floatArraytoJson")
+    }
+  }
+
+  private fun updateJsonData(nama: String, embed: String, kolom: String){
+    val url = "https://c31.website/updateEmbedFromFile.php"
+    val queue = Volley.newRequestQueue(this)
+    val parameters: MutableMap<String, String> = HashMap()
+    parameters["nama"] = nama
+    parameters["embedJson"] = embed
+    parameters["column"] = kolom
+
+    val request = requestPost2(url, parameters)
+
+    queue.add(request)
+  }
+
+  private fun requestPost2(url: String, parameters: MutableMap<String, String>): StringRequest {
+    // Use 'object :' to override function inside StringRequest()
+    val request = object : StringRequest(
+      Method.POST,
+      url,
+      Response.Listener {
+        Log.e("REGISTER", it)
+        try{
+          val message = JSONObject(it)
+          Toasty.info(this, message.getString("message")).show()
+          Log.d("POST", message.getString("message"))
+
+        } catch (e: JSONException){
+          e.printStackTrace()
+        }},
+      // https://stackoverflow.com/questions/45940861/android-8-cleartext-http-traffic-not-permitted
+      Response.ErrorListener {
+        Toasty.error(this, "Fail to get response = $it", Toast.LENGTH_SHORT).show()
+      }){
+      override fun getParams(): MutableMap<String, String>? {
+        return parameters
+      }
+    }
+    return request
+  }
+
+  private fun getID(nama: String){
+    val url = "https://c31.website/getID.php"
+    val queue = Volley.newRequestQueue(this)
+    val parameters: MutableMap<String, String> = HashMap()
+    parameters["namaP"] = nama
+
+    val request = requestGetID(url, parameters)
+
+    queue.add(request)
+  }
+
+  private fun requestGetID(url: String, parameters: MutableMap<String, String>): StringRequest {
+    // Use 'object :' to override function inside StringRequest()
+    val request = object: StringRequest(
+      Method.POST,
+      url,
+      Response.Listener {
+
+      },
+      Response.ErrorListener {
+        Toasty.error(this, "Fail to get response = $it", Toast.LENGTH_SHORT).show()
+      }){
+      override fun getParams(): MutableMap<String, String>? {
+        return parameters
+      }
+    }
+
+    return request
+  }
+
+  fun loadHashInternal(context: Context, filename:String): HashMap<String, Array<FloatArray>>{
+    var myHashMap: HashMap<String, Array<FloatArray>> = HashMap()
+    try {
+      val fileInputStream = FileInputStream(context.filesDir.toString() + filename)
+      val objectInputStream = ObjectInputStream(fileInputStream)
+      myHashMap = objectInputStream.readObject() as HashMap<String, Array<FloatArray>>
+      Toasty.success(context, "File Loaded Successfully", Toast.LENGTH_SHORT).show()
+    } catch (e: IOException) {
+      Toast.makeText(context, "Empty embed, please register new faces", Toast.LENGTH_SHORT).show()
+      e.printStackTrace()
+    }
+    return myHashMap
+  }
+
   /** Companion Object */
   // Companion Object -> An object declaration inside a class
   companion object {
@@ -486,9 +647,9 @@ class FaceBoundOverlay constructor(context: Context?,
       }
       if(prediction["name"] == "Unknown"){
         canvas.drawRoundRect(it, 16F, 16F, redPaint)
-      } else if(prediction["status"] == "Hadir") {
+      } else if(prediction["status"] == "1") {
         canvas.drawRoundRect(it, 16F, 16F, greenPaint)
-      } else if(prediction["status"] == "Belum Presensi"){
+      } else if(prediction["status"] == "0"){
         canvas.drawRoundRect(it, 16F, 16F, orangePaint)
       } else {
         canvas.drawRoundRect(it, 16F, 16F, redPaint)

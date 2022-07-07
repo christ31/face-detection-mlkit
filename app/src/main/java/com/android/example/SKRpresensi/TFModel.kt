@@ -4,6 +4,9 @@ import android.content.Context
 import android.graphics.Bitmap
 import android.graphics.Color
 import android.graphics.Rect
+import android.net.wifi.WifiManager
+import android.os.Build
+import android.text.TextUtils
 import android.util.Log
 import android.util.Size
 import android.widget.Toast
@@ -56,6 +59,7 @@ class TFModel(val context: Context,
   private var indexReg: Int = 0
   private var indexUpdate: Int = 0
   private var indextidakdikenal: Int = 0
+  private var terdaftar: Int = 0 // Digunakan untuk update kembali jika peserta sudah presensi dan keluar
 
   private var outputs = Array(5) {FloatArray(128)} // We will store 10 images for 1 person
   private var registerState = false
@@ -101,7 +105,7 @@ class TFModel(val context: Context,
       val filename = "/FaceEmbeddings.c31"
       val filename2 = "/FaceEmbeddings V5 Zoom in.c31"
       val filename3 = "/FaceEmbeddings V5 No Zoom.c31"
-      nameDistanceHash = loadHashInternal(context, filename2)
+      nameDistanceHash = loadHashInternal(context, filename)
     } catch(e: IOException){
       Log.e(TAG, e.toString())
     } finally {
@@ -131,7 +135,28 @@ class TFModel(val context: Context,
     val idname = viewBinding.loginSheet.etId
     val pass = viewBinding.loginSheet.etPass
     val loginbtn = viewBinding.loginSheet.btnLogin
+    val tombol_in = viewBinding.btnIn
+    val tombol_out = viewBinding.btnOut
 
+    tombol_in.setOnClickListener {
+      terdaftar = 0
+      tombol_in.setBackgroundColor(Color.GREEN)
+      tombol_in.setTextColor(Color.BLACK)
+
+      tombol_out.setBackgroundColor(Color.BLACK)
+      tombol_out.setTextColor(Color.WHITE)
+    }
+
+    tombol_out.setOnClickListener {
+      terdaftar = 1
+      tombol_out.setBackgroundColor(Color.GREEN)
+      tombol_out.setTextColor(Color.BLACK)
+
+      tombol_in.setBackgroundColor(Color.BLACK)
+      tombol_in.setTextColor(Color.WHITE)
+
+
+    }
 
     loginbtn.setOnClickListener {
       // call function to login and update status to "Hadir"
@@ -181,12 +206,13 @@ class TFModel(val context: Context,
 
     viewBinding.videoCaptureButton.text = "Looking.."
     viewBinding.btnStatus.text = "Jangan lupa lepaskan masker"
+    viewBinding.btnStatus.setBackgroundColor(Color.parseColor("#FF5722"))
   }
 
   /** Send data to mySQL server */
   // https://www.androidhire.com/insert-data-from-app-to-mysql-android/
   private fun insertData(name: String, email: String, password: String, noHP: String){
-    val url = "http://192.168.100.7/connectToMySQL/add.php"
+    val url = "https://c31.website//add.php"
     val queue = Volley.newRequestQueue(context)
     val parameters: MutableMap<String, String> = HashMap()
     parameters["namaP"] = name
@@ -200,11 +226,14 @@ class TFModel(val context: Context,
   }
 
   private fun updateData(id: String, status: String){
-    val url = "http://192.168.100.7/connectToMySQL/update.php"
+    val url = "https://c31.website/update.php"
     val queue = Volley.newRequestQueue(context)
     val parameters: MutableMap<String, String> = HashMap()
-    parameters["idP"] = id
+    parameters["idP"] = id.toString()
     parameters["statusP"] = status
+    parameters["noHpP"] = getDeviceName().toString()
+
+    Log.e("UpdateToDB", "parameters = $id dan $status")
 
     val request = requestPost(url, parameters)
 
@@ -212,7 +241,7 @@ class TFModel(val context: Context,
   }
 
   private fun updateDataWithPass(id: String, status: String, pass: String){
-    val url = "http://192.168.100.7/connectToMySQL/updatewithPass.php"
+    val url = "https://c31.website/updatewithPass.php"
     val queue = Volley.newRequestQueue(context)
     val parameters: MutableMap<String, String> = HashMap()
     parameters["idP"] = id
@@ -225,7 +254,7 @@ class TFModel(val context: Context,
   }
 
   private fun getID(nama: String){
-    val url = "http://192.168.100.7/connectToMySQL/getID.php"
+    val url = "https://c31.website/getID.php"
     val queue = Volley.newRequestQueue(context)
     val parameters: MutableMap<String, String> = HashMap()
     parameters["namaP"] = nama
@@ -236,7 +265,7 @@ class TFModel(val context: Context,
   }
 
   private fun get(id: String, kolom: String){
-    val url = "http://192.168.100.7/connectToMySQL/get.php"
+    val url = "https://c31.website/get.php"
     val queue = Volley.newRequestQueue(context)
     val parameters: MutableMap<String, String> = HashMap()
     parameters["idP"] = id
@@ -306,11 +335,11 @@ class TFModel(val context: Context,
         Log.e("REGISTER", it)
         try{
           val message = JSONObject(it)
-          Toasty.info(context, message.getString("message")).show()
+//          Toasty.info(context, message.getString("message")).show()
           Log.d("POST", message.getString("message"))
-          if(loginbottombehavior.state == BottomSheetBehavior.STATE_EXPANDED){
-            loginbottombehavior.state = BottomSheetBehavior.STATE_HIDDEN
-          }
+//          if(loginbottombehavior.state == BottomSheetBehavior.STATE_EXPANDED){
+//            loginbottombehavior.state = BottomSheetBehavior.STATE_HIDDEN
+//          }
         } catch (e: JSONException){
           e.printStackTrace()
         }},
@@ -325,6 +354,35 @@ class TFModel(val context: Context,
     return request
   }
   /** END OF Sending to MySQL */
+
+  /** Returns the consumer friendly device name  */
+  fun getDeviceName(): String? {
+    val manufacturer = Build.MANUFACTURER
+    val model = Build.MODEL
+    return if (model.startsWith(manufacturer)) {
+      capitalize(model)
+    } else capitalize(manufacturer) + " " + model
+  }
+
+  private fun capitalize(str: String): String {
+    if (TextUtils.isEmpty(str)) {
+      return str
+    }
+    val arr = str.toCharArray()
+    var capitalizeNext = true
+    val phrase = StringBuilder()
+    for (c in arr) {
+      if (capitalizeNext && Character.isLetter(c)) {
+        phrase.append(c.uppercaseChar())
+        capitalizeNext = false
+        continue
+      } else if (Character.isWhitespace(c)) {
+        capitalizeNext = true
+      }
+      phrase.append(c)
+    }
+    return phrase.toString()
+  }
 
   fun setFaceBound(FaceRect: Rect){
     faceBounds = FaceRect
@@ -388,17 +446,18 @@ class TFModel(val context: Context,
             result["status"] = query["status"]!!
 
             viewBinding.videoCaptureButton.text = result["name"] + " (" + query["id"] + ")"
-            viewBinding.btnStatus.text = query["status"]
 
-            if(query["status"] == "Belum Presensi"){
+            if(query["status"] == "0"){ // 0 = Tidak hadir
               viewBinding.btnStatus.setBackgroundColor(Color.parseColor("#74B4FF"))
-              indexUpdate += 1
-            } else if(query["status"] == "Hadir"){
-              viewBinding.btnStatus.setBackgroundColor(Color.parseColor("#FF0000"))
+              viewBinding.btnStatus.text = "Tidak Hadir"
+            } else if(query["status"] == "1"){ // 1 = Hadir
+              viewBinding.btnStatus.setBackgroundColor(Color.parseColor("#00e676"))
+              viewBinding.btnStatus.text = "Hadir"
             }
             else {
               viewBinding.btnStatus.text = "Processing..."
             }
+            indexUpdate += 1
           }
         }
       } else {
@@ -408,15 +467,22 @@ class TFModel(val context: Context,
     }
 
     // Jika dikenali 3 kali, maka update status menjadi hadir
-    if(indexUpdate == 3){
-      updateData(query["id"]!!, "Hadir")
+    if(indexUpdate == 3 && query["status"] == "0" && terdaftar == 0){
+      updateData(query["id"]!!, "1")
       Toasty.info(context, result["name"] + " berhasil melakukan presensi", Toast.LENGTH_LONG).show()
+      indexUpdate = 0
+    } else if (indexUpdate == 3 && query["status"] == "1" && terdaftar ==1){     // Jika sudah presensi dan ingin keluar dari lokasi
+      updateData(query["id"]!!, "0")
+      Toasty.info(context, result["name"] + " berhasil keluar dari lokasi", Toast.LENGTH_LONG).show()
       indexUpdate = 0
     }
 
+
+
+
     // Jika wajah tidak dikenali 10 kali, maka tampilkan opsi alternative
     if(indextidakdikenal == 5){
-      loginbottombehavior.state = BottomSheetBehavior.STATE_EXPANDED
+//      loginbottombehavior.state = BottomSheetBehavior.STATE_EXPANDED
       indextidakdikenal = 0
     }
 
@@ -496,7 +562,6 @@ class TFModel(val context: Context,
       val fileInputStream = FileInputStream(context.filesDir.toString() + filename)
       val objectInputStream = ObjectInputStream(fileInputStream)
       myHashMap = objectInputStream.readObject() as HashMap<String, Array<FloatArray>>
-//      Toast.makeText(context, "File Loaded Succesfully", Toast.LENGTH_SHORT).show()
       Toasty.success(context, "File Loaded Successfully", Toast.LENGTH_SHORT).show()
     } catch (e: IOException) {
       Toast.makeText(context, "Empty embed, please register new faces", Toast.LENGTH_SHORT).show()

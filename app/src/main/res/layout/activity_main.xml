@@ -91,15 +91,28 @@
             app:layout_constraintTop_toBottomOf="@+id/video_capture_button" />
 
         <Button
-            android:id="@+id/btn_showLapor"
+            android:id="@+id/btn_in"
             android:layout_width="0dp"
-            android:layout_height="64dp"
-            android:layout_marginStart="50dp"
-            android:layout_marginEnd="50dp"
-            android:backgroundTint="@color/c31_red"
-            android:text="Lapor Kesalahan"
-            app:layout_constraintEnd_toEndOf="parent"
+            android:layout_height="70dp"
+            android:layout_marginStart="20dp"
+            android:layout_marginTop="10dp"
+            android:layout_marginEnd="20dp"
+            android:text="IN"
+            app:layout_constraintBottom_toBottomOf="parent"
+            app:layout_constraintEnd_toStartOf="@+id/vertical_centerline"
             app:layout_constraintStart_toStartOf="parent"
+            app:layout_constraintTop_toBottomOf="@+id/btn_status" />
+
+        <Button
+            android:id="@+id/btn_out"
+            android:layout_width="0dp"
+            android:layout_height="70dp"
+            android:layout_marginStart="20dp"
+            android:layout_marginTop="10dp"
+            android:layout_marginEnd="20dp"
+            android:text="OUT"
+            app:layout_constraintEnd_toEndOf="parent"
+            app:layout_constraintStart_toStartOf="@+id/vertical_centerline"
             app:layout_constraintTop_toBottomOf="@+id/btn_status" />
 
     </androidx.constraintlayout.widget.ConstraintLayout>

@@ -218,5 +218,15 @@
             app:layout_constraintBottom_toBottomOf="parent"
             app:layout_constraintEnd_toEndOf="parent" />
 
+        <Button
+            android:id="@+id/btn_showLapor"
+            android:layout_width="93dp"
+            android:layout_height="45dp"
+            android:backgroundTint="@color/c31_red"
+            android:text="Lapor Kesalahan"
+            app:layout_constraintBottom_toTopOf="@+id/popup_button"
+            app:layout_constraintEnd_toStartOf="@+id/guideline3"
+            app:layout_constraintStart_toStartOf="parent" />
+
     </androidx.constraintlayout.widget.ConstraintLayout>
 </LinearLayout>
