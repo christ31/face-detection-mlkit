@@ -54,7 +54,7 @@
         <Button
             android:id="@+id/video_capture_button"
             android:layout_width="0dp"
-            android:layout_height="62dp"
+            android:layout_height="55dp"
 
             android:clickable="false"
             android:elevation="0dp"
@@ -74,7 +74,7 @@
         <Button
             android:id="@+id/btn_status"
             android:layout_width="0dp"
-            android:layout_height="62dp"
+            android:layout_height="55dp"
             android:backgroundTint="#FF5722"
             android:clickable="false"
             android:foregroundTintMode="add"
@@ -93,12 +93,13 @@
         <Button
             android:id="@+id/btn_in"
             android:layout_width="0dp"
-            android:layout_height="70dp"
+            android:layout_height="65dp"
             android:layout_marginStart="20dp"
             android:layout_marginTop="10dp"
             android:layout_marginEnd="20dp"
+            android:backgroundTint="@color/c31_primary"
             android:text="IN"
-            app:layout_constraintBottom_toBottomOf="parent"
+            android:textSize="20sp"
             app:layout_constraintEnd_toStartOf="@+id/vertical_centerline"
             app:layout_constraintStart_toStartOf="parent"
             app:layout_constraintTop_toBottomOf="@+id/btn_status" />
@@ -106,14 +107,18 @@
         <Button
             android:id="@+id/btn_out"
             android:layout_width="0dp"
-            android:layout_height="70dp"
+            android:layout_height="65dp"
             android:layout_marginStart="20dp"
             android:layout_marginTop="10dp"
             android:layout_marginEnd="20dp"
+            android:backgroundTint="#575757"
             android:text="OUT"
+            android:textSize="20sp"
             app:layout_constraintEnd_toEndOf="parent"
             app:layout_constraintStart_toStartOf="@+id/vertical_centerline"
             app:layout_constraintTop_toBottomOf="@+id/btn_status" />
+
+
 
     </androidx.constraintlayout.widget.ConstraintLayout>
 
@@ -131,6 +136,11 @@
     <include
         android:id="@+id/report_sheet"
         layout="@layout/activity_report_sheet"
+        tools:visibility="invisible" />
+
+    <include
+        android:id="@+id/feedback_sheet"
+        layout="@layout/activity_feedback_sheet"
         tools:visibility="invisible" />
 
 </androidx.coordinatorlayout.widget.CoordinatorLayout>

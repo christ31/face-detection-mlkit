@@ -8,14 +8,15 @@
         android:title="Admin Settings"
         android:iconTint="@color/white"
         android:contentDescription="Buka panel admin"
+        android:visible="false"
         app:showAsAction="ifRoom" />
 
     <item
         android:id="@+id/reportItem"
         android:contentDescription="Lapor Kesalahan"
         android:icon="@drawable/ic_baseline_report_24"
-        android:iconTint="@color/c31_red"
         android:title="Report"
+        android:visible="false"
         app:showAsAction="ifRoom" />
 
 </menu>

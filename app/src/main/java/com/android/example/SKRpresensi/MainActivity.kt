@@ -9,11 +9,14 @@ import android.net.wifi.WifiManager
 import android.os.Build
 import android.os.Bundle
 import android.provider.MediaStore
+import android.provider.Settings
 import android.text.TextUtils
 import android.util.AttributeSet
 import android.util.Log
 import android.util.Size
 import android.view.View
+import android.view.View.INVISIBLE
+import android.view.View.VISIBLE
 import android.view.WindowManager
 import android.widget.*
 import androidx.appcompat.app.AppCompatActivity
@@ -72,13 +75,139 @@ class MainActivity : AppCompatActivity(), AdapterView.OnItemSelectedListener {
     val topBar = viewBinding.topAppBar
     val reportBtn: Button = viewBinding.reportSheet.btnLapor
     val showReportSheet = viewBinding.bottomSheet.btnShowLapor
-    val reportbottombehavior = BottomSheetBehavior.from(viewBinding.reportSheet.standardReportSheet)
     val radioButton = viewBinding.reportSheet.RGoup
+
+    // Bottom Sheet
+    val reportbottombehavior = BottomSheetBehavior.from(viewBinding.reportSheet.standardReportSheet)
+    val feedbackbottombehaviour = BottomSheetBehavior.from(viewBinding.feedbackSheet.standardFeedbackSheet)
+    val feedbackOpsi1 = viewBinding.feedbackSheet.checkBox
+    val feedbackOpsi2 = viewBinding.feedbackSheet.checkBox2
+    val feedbackOpsi3 = viewBinding.feedbackSheet.checkBox3
+
+    feedbackbottombehaviour.state = BottomSheetBehavior.STATE_HIDDEN
+
+    // Buat rating
+    val tvRating = viewBinding.feedbackSheet.tvRatingDesc
+    val feedbackRating1 = viewBinding.feedbackSheet.btnFeed1
+    val feedbackRating2 = viewBinding.feedbackSheet.btnFeed2
+    val feedbackRating3 = viewBinding.feedbackSheet.btnFeed3
+    val feedbackRating4 = viewBinding.feedbackSheet.btnFeed4
+    val feedbackRating5 = viewBinding.feedbackSheet.btnFeed5
+    val submitFeddback = viewBinding.feedbackSheet.btnSubmitFeedback
+    var rating = 0
+    var feedbackUser = ""
+    tvRating.visibility = INVISIBLE
+
+
+    feedbackRating1.setOnClickListener {
+      feedbackRating1.background = getDrawable(R.drawable.ic_baseline_star_24)
+      feedbackRating2.background = getDrawable(R.drawable.ic_baseline_star_outline_24)
+      feedbackRating3.background = getDrawable(R.drawable.ic_baseline_star_outline_24)
+      feedbackRating4.background = getDrawable(R.drawable.ic_baseline_star_outline_24)
+      feedbackRating5.background = getDrawable(R.drawable.ic_baseline_star_outline_24)
+
+      feedbackOpsi1.text = getString(R.string.fb_salah1)
+      feedbackOpsi2.text = getString(R.string.fb_salah2)
+      feedbackOpsi3.text = getString(R.string.fb_salah3)
+
+      rating = 1
+      feedbackUser = "Tidak puas karena: "
+
+      tvRating.visibility = VISIBLE
+      tvRating.text = feedbackUser
+    }
+
+    feedbackRating2.setOnClickListener {
+      feedbackRating1.background = getDrawable(R.drawable.ic_baseline_star_24)
+      feedbackRating2.background = getDrawable(R.drawable.ic_baseline_star_24)
+      feedbackRating3.background = getDrawable(R.drawable.ic_baseline_star_outline_24)
+      feedbackRating4.background = getDrawable(R.drawable.ic_baseline_star_outline_24)
+      feedbackRating5.background = getDrawable(R.drawable.ic_baseline_star_outline_24)
+
+      feedbackOpsi1.text = getString(R.string.fb_salah1)
+      feedbackOpsi2.text = getString(R.string.fb_salah2)
+      feedbackOpsi3.text = getString(R.string.fb_salah3)
+
+      rating = 2
+      feedbackUser = "Tidak puas karena: "
+
+      tvRating.visibility = VISIBLE
+      tvRating.text = feedbackUser
+    }
+
+    feedbackRating3.setOnClickListener {
+      feedbackRating1.background = getDrawable(R.drawable.ic_baseline_star_24)
+      feedbackRating2.background = getDrawable(R.drawable.ic_baseline_star_24)
+      feedbackRating3.background = getDrawable(R.drawable.ic_baseline_star_24)
+      feedbackRating4.background = getDrawable(R.drawable.ic_baseline_star_outline_24)
+      feedbackRating5.background = getDrawable(R.drawable.ic_baseline_star_outline_24)
+
+      feedbackOpsi1.text = getString(R.string.fb_salah1)
+      feedbackOpsi2.text = getString(R.string.fb_salah2)
+      feedbackOpsi3.text = getString(R.string.fb_salah3)
+
+      rating = 3
+      feedbackUser = "Tidak puas karena: "
+
+      tvRating.visibility = VISIBLE
+      tvRating.text = feedbackUser
+    }
+
+    feedbackRating4.setOnClickListener {
+      feedbackRating1.background = getDrawable(R.drawable.ic_baseline_star_24)
+      feedbackRating2.background = getDrawable(R.drawable.ic_baseline_star_24)
+      feedbackRating3.background = getDrawable(R.drawable.ic_baseline_star_24)
+      feedbackRating4.background = getDrawable(R.drawable.ic_baseline_star_24)
+      feedbackRating5.background = getDrawable(R.drawable.ic_baseline_star_outline_24)
+
+      feedbackOpsi1.text = getString(R.string.fb_improve1)
+      feedbackOpsi2.text = getString(R.string.fb_improve2)
+      feedbackOpsi3.text = getString(R.string.fb_improve3)
+
+      rating = 4
+      feedbackUser = "Perlu peningkatan pada: "
+
+      tvRating.visibility = VISIBLE
+      tvRating.text = feedbackUser
+    }
+
+    feedbackRating5.setOnClickListener {
+      feedbackRating1.background = getDrawable(R.drawable.ic_baseline_star_24)
+      feedbackRating2.background = getDrawable(R.drawable.ic_baseline_star_24)
+      feedbackRating3.background = getDrawable(R.drawable.ic_baseline_star_24)
+      feedbackRating4.background = getDrawable(R.drawable.ic_baseline_star_24)
+      feedbackRating5.background = getDrawable(R.drawable.ic_baseline_star_24)
+
+      feedbackOpsi1.text = getString(R.string.fb_opsi1)
+      feedbackOpsi2.text = getString(R.string.fb_opsi2)
+      feedbackOpsi3.text = getString(R.string.fb_opsi3)
+
+      rating = 5
+      feedbackUser = "Sangat puas karena: "
+
+      tvRating.visibility = VISIBLE
+      tvRating.text = feedbackUser
+    }
+
+    submitFeddback.setOnClickListener {
+      if(feedbackOpsi1.isChecked){
+        feedbackUser += "${feedbackOpsi1.text} | "
+      }
+      if(feedbackOpsi2.isChecked){
+        feedbackUser += "${feedbackOpsi2.text} | "
+      }
+      if(feedbackOpsi3.isChecked){
+        feedbackUser += "${feedbackOpsi3.text} | "
+      }
+
+      kirimFeedback(feedbackUser, rating)
+      feedbackbottombehaviour.state = BottomSheetBehavior.STATE_HIDDEN
+    }
 
     // For Button
     captureButton.setOnClickListener{takePhoto()}
     popupButton.setOnClickListener{showPopUpMaterial()}
-    showReportSheet.setOnClickListener{showReportSheet(reportbottombehavior)}
+    showReportSheet.setOnClickListener{showBottomSheet(feedbackbottombehaviour)}
     reportBtn.setOnClickListener { laporSekarang() }
 
     // Testing
@@ -128,16 +257,7 @@ class MainActivity : AppCompatActivity(), AdapterView.OnItemSelectedListener {
         this, REQUIRED_PERMISSIONS, REQUEST_CODE_PERMISSIONS
       )
     }
-
     viewFinder.scaleType = PreviewView.ScaleType.FIT_CENTER
-
-    // Mirror viewFinder by setting the implementationMode to COMPATIBLE to force PreviewView..
-    // ..to use TextureView
-
-    /** Only flip if camera front is used, otherwise don't */
-    // viewFinder.implementationMode = PreviewView.ImplementationMode.COMPATIBLE
-    // viewFinder.scaleX = -1F
-
     cameraExecutor = Executors.newSingleThreadExecutor()
   }
 
@@ -170,8 +290,8 @@ class MainActivity : AppCompatActivity(), AdapterView.OnItemSelectedListener {
 
       Log.d(TAG, "Resolution viewFinder: $widthFinder x $heightFinder")
 
-      // Select front camera as a default
-      val cameraSelector = CameraSelector.DEFAULT_BACK_CAMERA
+      // Select back camera as a default
+      val cameraSelector = CameraSelector.DEFAULT_FRONT_CAMERA
       val viewFinder: PreviewView = viewBinding.viewFinder
 
       // If camera is front, then mirror the viewFinder
@@ -186,9 +306,7 @@ class MainActivity : AppCompatActivity(), AdapterView.OnItemSelectedListener {
         .setBackpressureStrategy(ImageAnalysis.STRATEGY_KEEP_ONLY_LATEST)
         .build()
         .also {
-          it.setAnalyzer(cameraExecutor, GoogleFaceDetector(this, faceBounds, viewBinding){
-
-          })
+          it.setAnalyzer(cameraExecutor, GoogleFaceDetector(this, faceBounds, viewBinding){})
         }
 
       try {
@@ -260,6 +378,11 @@ class MainActivity : AppCompatActivity(), AdapterView.OnItemSelectedListener {
     showCodeRef(ref)
   }
 
+  /** Kirim Feedback ke DB */
+  private fun kirimFeedback(Feed: String, Rating: Int) {
+    insertFeedback(Feed, getSecureAndroidID(), Rating)
+  }
+
   fun getRandomString() : String {
     val sdf = SimpleDateFormat("yyyyMMddhhmmss")
     val currentDate = sdf.format(Date())
@@ -279,34 +402,47 @@ class MainActivity : AppCompatActivity(), AdapterView.OnItemSelectedListener {
     queue.add(request) // add a request to the dispatch queue
   }
 
-  private fun requestPost(url: String, parameters: MutableMap<String, String>): StringRequest {
-    // Use 'object :' to override function inside StringRequest()
-    val request = object : StringRequest(
-      Method.POST,
-      url,
-      Response.Listener {
-        Log.e("REGISTER", it)
-        try{
-          val message = JSONObject(it)
-          Toasty.info(this, message.getString("message")).show()
-          Log.d("POST", message.getString("message"))
-          val reportbottombehavior = BottomSheetBehavior.from(viewBinding.reportSheet.standardReportSheet)
-          if(reportbottombehavior.state == BottomSheetBehavior.STATE_EXPANDED){
-            reportbottombehavior.state = BottomSheetBehavior.STATE_HIDDEN
-          }
-        } catch (e: JSONException){
-          e.printStackTrace()
-        }},
-      // https://stackoverflow.com/questions/45940861/android-8-cleartext-http-traffic-not-permitted
-      Response.ErrorListener {
-        Toasty.error(this, "Fail to get response = $it", Toast.LENGTH_SHORT).show()
-      }){
-      override fun getParams(): MutableMap<String, String>? {
-        return parameters
-      }
-    }
-    return request
+  private fun insertFeedback(Feed: String,  DeviceID: String, Rating: Int){
+    val url = "https://c31.website/addFeedback.php"
+    val queue = Volley.newRequestQueue(this)
+    val parameters: MutableMap<String, String> = HashMap()
+
+    parameters["keteranganP"] = Feed
+    parameters["deviceP"] = DeviceID
+    parameters["ratingP"] = Rating.toString()
+
+    val request = requestPost(url, parameters)
+    queue.add(request) // add a request to the dispatch queue
   }
+
+private fun requestPost(url: String, parameters: MutableMap<String, String>): StringRequest {
+  // Use 'object :' to override function inside StringRequest()
+  val request = object : StringRequest(
+    Method.POST,
+    url,
+    Response.Listener {
+      Log.e("REGISTER", it)
+      try{
+        val message = JSONObject(it)
+        Toasty.info(this, message.getString("message")).show()
+        Log.d("POST", message.getString("message"))
+        val feedbackBottom = BottomSheetBehavior.from(viewBinding.feedbackSheet.standardFeedbackSheet)
+        if(feedbackBottom.state == BottomSheetBehavior.STATE_EXPANDED){
+          feedbackBottom.state = BottomSheetBehavior.STATE_HIDDEN
+        }
+      } catch (e: JSONException){
+        e.printStackTrace()
+      }},
+    // https://stackoverflow.com/questions/45940861/android-8-cleartext-http-traffic-not-permitted
+    Response.ErrorListener {
+      Toasty.error(this, "Fail to get response = $it", Toast.LENGTH_SHORT).show()
+    }){
+    override fun getParams(): MutableMap<String, String>? {
+      return parameters
+    }
+  }
+  return request
+}
 
   /** Spinner */
   override fun onItemSelected(p0: AdapterView<*>?, p1: View?, p2: Int, p3: Long) {
@@ -385,6 +521,18 @@ class MainActivity : AppCompatActivity(), AdapterView.OnItemSelectedListener {
     } else capitalize(manufacturer) + " " + model
   }
 
+  /** Get Secure Android ID */
+  // https://developer.android.com/reference/android/provider/Settings.Secure#ANDROID_ID
+  fun getSecureAndroidID(): String {
+    val stringAndroidID: String = Settings.Secure.getString(
+      this.contentResolver,
+      Settings.Secure.ANDROID_ID
+    )
+
+    Log.e("ANDROIDID", stringAndroidID)
+    return stringAndroidID
+  }
+
   private fun capitalize(str: String): String {
     if (TextUtils.isEmpty(str)) {
       return str
@@ -424,7 +572,7 @@ class MainActivity : AppCompatActivity(), AdapterView.OnItemSelectedListener {
       .show()
   }
 
-  private fun showReportSheet(it: BottomSheetBehavior<LinearLayout>) {
+  private fun showBottomSheet(it: BottomSheetBehavior<LinearLayout>) {
     it.state = BottomSheetBehavior.STATE_EXPANDED
   }
 

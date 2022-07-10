@@ -71,12 +71,12 @@ class GoogleFaceDetector(
             faceBoundOverlay.clear()
             model.resetQuery()
           }
+
+          /** IMPORTANT : If success, then close the image proxy */
+          imageProxy.close()
         }
         .addOnFailureListener { e -> // Task failed with an exception
           // Log.e(TAG, e.message.toString())
-        }
-        .addOnSuccessListener { /** IMPORTANT : If success, then close the image proxy */
-          imageProxy.close()
         }
     }
   }

@@ -4,8 +4,9 @@ import android.content.Context
 import android.graphics.Bitmap
 import android.graphics.Color
 import android.graphics.Rect
-import android.net.wifi.WifiManager
 import android.os.Build
+import android.os.Handler
+import android.os.Looper
 import android.text.TextUtils
 import android.util.Log
 import android.util.Size
@@ -90,6 +91,8 @@ class TFModel(val context: Context,
     val inputShape = tfLiteInterp.getInputTensor(inputIndex).shape()
     val tfInputSize = Size(inputShape[2], inputShape[1]) // Order of axis is: {1, height, width, 3}
 
+    Log.e("TFLITEInput", tfInputSize.toString())
+
     // Create ImageProcessor to process the image before predicting
     tfImageProcessor =
       ImageProcessor.Builder()
@@ -140,22 +143,16 @@ class TFModel(val context: Context,
 
     tombol_in.setOnClickListener {
       terdaftar = 0
-      tombol_in.setBackgroundColor(Color.GREEN)
-      tombol_in.setTextColor(Color.BLACK)
+      tombol_in.setBackgroundColor(Color.parseColor("#0F766E"))
 
-      tombol_out.setBackgroundColor(Color.BLACK)
-      tombol_out.setTextColor(Color.WHITE)
+      tombol_out.setBackgroundColor(Color.parseColor("#575757"))
     }
 
     tombol_out.setOnClickListener {
       terdaftar = 1
-      tombol_out.setBackgroundColor(Color.GREEN)
-      tombol_out.setTextColor(Color.BLACK)
+      tombol_out.setBackgroundColor(Color.parseColor("#0F766E"))
 
-      tombol_in.setBackgroundColor(Color.BLACK)
-      tombol_in.setTextColor(Color.WHITE)
-
-
+      tombol_in.setBackgroundColor(Color.parseColor("#575757"))
     }
 
     loginbtn.setOnClickListener {
@@ -168,7 +165,6 @@ class TFModel(val context: Context,
     viewBinding.bottomSheet.captureButton.setOnClickListener {
       registerState = true
     }
-
     viewBinding.bottomSheet.btnAddUser.setOnClickListener {
       val nama = kotakNama.text.toString()
       insertData(nama, "n@presensi.com", "n", "0811")
@@ -189,6 +185,10 @@ class TFModel(val context: Context,
     indexUpdate = 0
 
     Log.d("RESET", "Resetting query and result")
+
+    val feedbackbottombehaviour = BottomSheetBehavior.from(viewBinding.feedbackSheet.standardFeedbackSheet)
+    feedbackbottombehaviour.state = BottomSheetBehavior.STATE_HIDDEN
+
 
     if(query.size > 0 || result.size > 0){
       Log.d("RESET", "Query = $query")
@@ -340,6 +340,20 @@ class TFModel(val context: Context,
 //          if(loginbottombehavior.state == BottomSheetBehavior.STATE_EXPANDED){
 //            loginbottombehavior.state = BottomSheetBehavior.STATE_HIDDEN
 //          }
+
+          if(parameters["statusP"] == "1"){
+            Toasty.info(context, result["name"] + " berhasil melakukan presensi", Toast.LENGTH_LONG).show()
+            // Add delay
+            Handler(Looper.getMainLooper()).postDelayed({
+              run {
+                val feedbackbottombehaviour = BottomSheetBehavior.from(viewBinding.feedbackSheet.standardFeedbackSheet)
+                feedbackbottombehaviour.state = BottomSheetBehavior.STATE_EXPANDED
+              }
+            }, 3000); // Millisecond 1000 = 1 sec
+
+          } else if(parameters["statusP"] == "0"){
+            Toasty.info(context, result["name"] + " berhasil keluar", Toast.LENGTH_LONG).show()
+          }
         } catch (e: JSONException){
           e.printStackTrace()
         }},
@@ -384,6 +398,7 @@ class TFModel(val context: Context,
     return phrase.toString()
   }
 
+  // setFacebounds untuk melakukan cropping pada bitmapBuffer
   fun setFaceBound(FaceRect: Rect){
     faceBounds = FaceRect
   }
@@ -397,10 +412,8 @@ class TFModel(val context: Context,
     // Only compare if index is incrementing
     // L2 Norm = sqrt( SumEach( values^2 ) )
 
-    Log.e("EXPAND", loginbottombehavior.state.toString())
-
     /** Run every 5 or 10 clock to save resources */
-    if((index+1) % 20 == 0){
+    if((index+1) % 10 == 0){
       bitmapBuffer = BitmapUtils.getBitmap(image)!!
 //      BitmapUtils.saveBitmap(context, bitmapBuffer, "BitmapTF.png")
 
@@ -467,17 +480,13 @@ class TFModel(val context: Context,
     }
 
     // Jika dikenali 3 kali, maka update status menjadi hadir
-    if(indexUpdate == 3 && query["status"] == "0" && terdaftar == 0){
+    if(indexUpdate == 1 && query["status"] == "0" && terdaftar == 0){
       updateData(query["id"]!!, "1")
-      Toasty.info(context, result["name"] + " berhasil melakukan presensi", Toast.LENGTH_LONG).show()
       indexUpdate = 0
-    } else if (indexUpdate == 3 && query["status"] == "1" && terdaftar ==1){     // Jika sudah presensi dan ingin keluar dari lokasi
+    } else if (indexUpdate == 1 && query["status"] == "1" && terdaftar == 1){     // Jika sudah presensi dan ingin keluar dari lokasi
       updateData(query["id"]!!, "0")
-      Toasty.info(context, result["name"] + " berhasil keluar dari lokasi", Toast.LENGTH_LONG).show()
       indexUpdate = 0
     }
-
-
 
 
     // Jika wajah tidak dikenali 10 kali, maka tampilkan opsi alternative
@@ -600,5 +609,6 @@ class TFModel(val context: Context,
     private const val TAG = "TF Class"
     private const val ACCURACY_THRESHOLD = 10f
     private const val MODEL_PATH = "facenet.tflite"
+
   }
 }

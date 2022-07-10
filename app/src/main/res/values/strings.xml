@@ -17,6 +17,18 @@
     <string name="cb_opsi1">Tampilan Nama dan ID salah</string>
     <string name="cb_opsi2">Tidak ada bounding box di wajah</string>
 
+    <string name="fb_opsi1">Informasi benar</string>
+    <string name="fb_opsi2">Deteksi wajah cepat</string>
+    <string name="fb_opsi3">Pengenalan wajah cepat</string>
+
+    <string name="fb_improve1">Kejelasan Informasi</string>
+    <string name="fb_improve2">Kecepatan Deteksi wajah</string>
+    <string name="fb_improve3">Kecepatan pengenalan wajah</string>
+
+    <string name="fb_salah1">Informasi salah</string>
+    <string name="fb_salah2">Pengenalan wajah lama</string>
+    <string name="fb_salah3">Dikenali namun gagal update status presensi</string>
+
     <string-array name="planets_array">
         <item>Mercury</item>
         <item>Venus</item>
