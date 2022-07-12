@@ -57,6 +57,7 @@ class MainActivity : AppCompatActivity(), AdapterView.OnItemSelectedListener {
 
   private var listRuang = arrayOfNulls<String>(5)
   var jenisLaporan = "Default"
+  var cameraSelector = CameraSelector.DEFAULT_FRONT_CAMERA
 
   override fun onCreate(savedInstanceState: Bundle?) {
     super.onCreate(savedInstanceState)
@@ -80,11 +81,14 @@ class MainActivity : AppCompatActivity(), AdapterView.OnItemSelectedListener {
     // Bottom Sheet
     val reportbottombehavior = BottomSheetBehavior.from(viewBinding.reportSheet.standardReportSheet)
     val feedbackbottombehaviour = BottomSheetBehavior.from(viewBinding.feedbackSheet.standardFeedbackSheet)
+    val notRecognizedbottombehaviour = BottomSheetBehavior.from(viewBinding.notrecognizedSheet.standardNotrecognizedSheet)
+
     val feedbackOpsi1 = viewBinding.feedbackSheet.checkBox
     val feedbackOpsi2 = viewBinding.feedbackSheet.checkBox2
     val feedbackOpsi3 = viewBinding.feedbackSheet.checkBox3
 
     feedbackbottombehaviour.state = BottomSheetBehavior.STATE_HIDDEN
+    notRecognizedbottombehaviour.state = BottomSheetBehavior.STATE_HIDDEN
 
     // Buat rating
     val tvRating = viewBinding.feedbackSheet.tvRatingDesc
@@ -223,6 +227,7 @@ class MainActivity : AppCompatActivity(), AdapterView.OnItemSelectedListener {
     reportbottombehavior.state = BottomSheetBehavior.STATE_HIDDEN
     radioButton.check(R.id.rb1)
 
+
     // Top Bar
     topBar.setOnMenuItemClickListener { menuItem ->
       when (menuItem.itemId){
@@ -234,6 +239,22 @@ class MainActivity : AppCompatActivity(), AdapterView.OnItemSelectedListener {
           }
           true
         }
+        R.id.switchCamera -> {
+          if (allPermissionsGranted()) {
+            if(cameraSelector == CameraSelector.DEFAULT_FRONT_CAMERA){
+              cameraSelector = CameraSelector.DEFAULT_BACK_CAMERA
+            } else {
+              cameraSelector = CameraSelector.DEFAULT_FRONT_CAMERA
+            }
+            startCamera(cameraSelector)
+          } else {
+            ActivityCompat.requestPermissions(
+              this, REQUIRED_PERMISSIONS, REQUEST_CODE_PERMISSIONS
+            )
+          }
+          true
+        }
+
         else -> false
       }
     }
@@ -251,7 +272,7 @@ class MainActivity : AppCompatActivity(), AdapterView.OnItemSelectedListener {
 
     // Request camera permissions
     if (allPermissionsGranted()) {
-      startCamera()
+      startCamera(cameraSelector)
     } else {
       ActivityCompat.requestPermissions(
         this, REQUIRED_PERMISSIONS, REQUEST_CODE_PERMISSIONS
@@ -261,7 +282,7 @@ class MainActivity : AppCompatActivity(), AdapterView.OnItemSelectedListener {
     cameraExecutor = Executors.newSingleThreadExecutor()
   }
 
-  private fun startCamera(){
+  private fun startCamera(cameraSelector: CameraSelector){
     // ProcessCameraProvider use to bind camera lifecycle to any LifeCycleOwner within..
     // ..an application's process
     val cameraProviderFuture = ProcessCameraProvider.getInstance(this)
@@ -291,13 +312,15 @@ class MainActivity : AppCompatActivity(), AdapterView.OnItemSelectedListener {
       Log.d(TAG, "Resolution viewFinder: $widthFinder x $heightFinder")
 
       // Select back camera as a default
-      val cameraSelector = CameraSelector.DEFAULT_FRONT_CAMERA
       val viewFinder: PreviewView = viewBinding.viewFinder
 
       // If camera is front, then mirror the viewFinder
+
       if (cameraSelector == CameraSelector.DEFAULT_FRONT_CAMERA){
         viewFinder.implementationMode = PreviewView.ImplementationMode.COMPATIBLE
         viewFinder.scaleX = -1F
+      } else {
+        viewFinder.scaleX = 1F
       }
 
       /** Create Google ML Kit ImageFrameAnalysis */
@@ -337,7 +360,7 @@ class MainActivity : AppCompatActivity(), AdapterView.OnItemSelectedListener {
     super.onRequestPermissionsResult(requestCode, permissions, grantResults)
     if (requestCode == REQUEST_CODE_PERMISSIONS) {
       if (allPermissionsGranted()) {
-        startCamera()
+        startCamera(cameraSelector)
       } else {
         Toast.makeText(
           this,

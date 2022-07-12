@@ -143,4 +143,9 @@
         layout="@layout/activity_feedback_sheet"
         tools:visibility="invisible" />
 
+    <include
+        android:id="@+id/notrecognized_sheet"
+        layout="@layout/activity_notrecognized_sheet"
+        tools:visibility="visible" />
+
 </androidx.coordinatorlayout.widget.CoordinatorLayout>

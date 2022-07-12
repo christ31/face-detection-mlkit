@@ -189,6 +189,9 @@ class TFModel(val context: Context,
     val feedbackbottombehaviour = BottomSheetBehavior.from(viewBinding.feedbackSheet.standardFeedbackSheet)
     feedbackbottombehaviour.state = BottomSheetBehavior.STATE_HIDDEN
 
+    val notRecognizedbottombehaviour = BottomSheetBehavior.from(viewBinding.notrecognizedSheet.standardNotrecognizedSheet)
+    notRecognizedbottombehaviour.state = BottomSheetBehavior.STATE_HIDDEN
+
 
     if(query.size > 0 || result.size > 0){
       Log.d("RESET", "Query = $query")
@@ -490,8 +493,10 @@ class TFModel(val context: Context,
 
 
     // Jika wajah tidak dikenali 10 kali, maka tampilkan opsi alternative
-    if(indextidakdikenal == 5){
+    if(indextidakdikenal == 7){
 //      loginbottombehavior.state = BottomSheetBehavior.STATE_EXPANDED
+      val notRecognizedbottombehaviour = BottomSheetBehavior.from(viewBinding.notrecognizedSheet.standardNotrecognizedSheet)
+      notRecognizedbottombehaviour.state = BottomSheetBehavior.STATE_EXPANDED
       indextidakdikenal = 0
     }
 
@@ -527,14 +532,14 @@ class TFModel(val context: Context,
 
     // Loop to all embeds in knownEmbed
     nameDistanceHash.forEach{ // People.size Loops
-      // Log.d(TAG, "Now comparing with ${it.key} ${it.value.size}")
+       Log.d(TAG, "Now comparing with ${it.key} ${it.value.size}")
       // Loop to all values in 128-D embeds, and find L2 Norm on the difference between knownEmbed..
       // ..and currentEmbed
       val currentName = it.key
       var idx = 1
       it.value.forEach {
         for (i in 0 until valueF.size-1){ //128-D Loops
-          // Log.d(TAG, "valueF.get(i) - it.value[0][i]: ${valueF.get(i)} - ${it.value[0][i]}")
+//          Log.d(TAG, "valueF.get(i) - it.value[0][i]: ${valueF[i]} - ${it[i]}")
           val diff = valueF[i] - it[i]
           distanceT +=  diff * diff
         }
@@ -546,7 +551,7 @@ class TFModel(val context: Context,
           pictureUsed = idx
         }
         idx += 1
-        // Log.d(TAG, "Cur.Low.dist.: ${distance} | distanceTo ${currentName}: ${distanceT} | Est: ${nama}")
+         Log.d(TAG, "Cur.Low.dist.: ${distance} | distanceTo ${currentName}: ${distanceT} | Est: ${nama}")
       }
     }
     Log.d(TAG, "Calculating Distance FINISHED >>>>>>>>>>>>>>>>>>>>")

@@ -2,11 +2,20 @@
 <menu xmlns:android="http://schemas.android.com/apk/res/android"
     xmlns:app="http://schemas.android.com/apk/res-auto">
 
+
+    <item
+        android:id="@+id/switchCamera"
+        android:icon="@drawable/ic_baseline_switch_camera_24"
+        android:title="Switch Camera"
+        android:contentDescription="Buka panel admin"
+        android:visible="true"
+        app:showAsAction="ifRoom" />
+
+
     <item
         android:id="@+id/adminItem"
         android:icon="@drawable/ic_baseline_admin_panel_settings_24"
         android:title="Admin Settings"
-        android:iconTint="@color/white"
         android:contentDescription="Buka panel admin"
         android:visible="false"
         app:showAsAction="ifRoom" />

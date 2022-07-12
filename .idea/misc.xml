@@ -16,7 +16,9 @@
         <entry key="app/src/main/res/layout/activity_bottom_sheet.xml" value="0.22" />
         <entry key="app/src/main/res/layout/activity_feedback_sheet.xml" value="0.2952991452991453" />
         <entry key="app/src/main/res/layout/activity_login_sheet.xml" value="0.2" />
-        <entry key="app/src/main/res/layout/activity_main.xml" value="0.269921875" />
+        <entry key="app/src/main/res/layout/activity_main.xml" value="0.16" />
+        <entry key="app/src/main/res/layout/activity_notRecognized_sheet.xml" value="0.269921875" />
+        <entry key="app/src/main/res/layout/activity_notrecognized_sheet.xml" value="0.1671875" />
         <entry key="app/src/main/res/layout/activity_pop_up_window.xml" value="0.29628046173578454" />
         <entry key="app/src/main/res/layout/activity_report_sheet.xml" value="0.22730263157894737" />
         <entry key="app/src/main/res/layout/fragment_first.xml" value="0.29628046173578454" />
