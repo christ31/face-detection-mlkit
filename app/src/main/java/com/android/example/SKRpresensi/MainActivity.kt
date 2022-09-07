@@ -8,6 +8,8 @@ import android.graphics.*
 import android.net.wifi.WifiManager
 import android.os.Build
 import android.os.Bundle
+import android.os.Handler
+import android.os.Looper
 import android.provider.MediaStore
 import android.provider.Settings
 import android.text.TextUtils
@@ -37,6 +39,7 @@ import com.google.android.material.bottomsheet.BottomSheetBehavior
 import com.google.android.material.dialog.MaterialAlertDialogBuilder
 import com.google.gson.Gson
 import es.dmoral.toasty.Toasty
+import org.json.JSONArray
 import org.json.JSONException
 import org.json.JSONObject
 import java.io.FileInputStream
@@ -54,6 +57,8 @@ class MainActivity : AppCompatActivity(), AdapterView.OnItemSelectedListener {
   private var imageCapture: ImageCapture? = null
   private lateinit var cameraExecutor: ExecutorService
   private lateinit var camera: Camera
+  private var ruangID = "0"
+
 
   private var listRuang = arrayOfNulls<String>(5)
   var jenisLaporan = "Default"
@@ -260,7 +265,8 @@ class MainActivity : AppCompatActivity(), AdapterView.OnItemSelectedListener {
     }
 
     // Check for connection to DB
-    getRuang()
+//    getRuang()
+//    getRuangID(getSecureAndroidID())
 
     // If conn = true, then spinner
     var listofitems = arrayOf("Item 1", "Item 2", "Item 3")
@@ -476,6 +482,16 @@ private fun requestPost(url: String, parameters: MutableMap<String, String>): St
     TODO("Not yet implemented")
   }
 
+  private fun getRuangID(devID: String){
+    val url = "https://c31.website/getRuang2.php"
+    val parameters: MutableMap<String, String> = HashMap()
+    parameters["devSecureIdP"] = devID
+
+    val queue = Volley.newRequestQueue(this)
+    val request = requestPostRuangID(url, parameters)
+    queue.add(request) // add a request to the dispatch queue
+  }
+
   private fun getRuang(){
     val url = "https://c31.website/getRuang.php" //New Migrate
     val queue = Volley.newRequestQueue(this)
@@ -498,18 +514,8 @@ private fun requestPost(url: String, parameters: MutableMap<String, String>): St
       null,
       {
         Log.e("VOLLEY", it.toString())
-        Toasty.success(this@MainActivity, "${it.length()} Ruang Loaded", Toast.LENGTH_LONG).show()
+//        Toasty.success(this@MainActivity, "${it.length()} Ruang Loaded", Toast.LENGTH_LONG).show()
         listRuang = arrayOfNulls(it.length())
-//        var listRuang2 = arrayOfNulls<String>(it.length())
-//
-//
-//        val arrayJson = JSONArray(it)
-//
-//        for (i in 0 until arrayJson.length()){
-//          var objectJson = arrayJson.getJSONObject(i)
-//          listRuang2 = arrayOf(objectJson.getString("locId"))
-//        }
-
 
         for (i in 0 until it.length()){
           listRuang[i] = it.getString(i)
@@ -526,6 +532,29 @@ private fun requestPost(url: String, parameters: MutableMap<String, String>): St
     )
     return request
   }
+
+  private fun requestGetRuangID(url: String): JsonArrayRequest {
+    val request = JsonArrayRequest(
+      Request.Method.GET,
+      url,
+      null,
+      {
+        Log.e("VOLLEY", it.toString())
+        Toasty.success(this@MainActivity, "${it.length()} RuangID Loaded", Toast.LENGTH_LONG).show()
+        listRuang = arrayOfNulls(it.length())
+
+        for (i in 0 until it.length()){
+          listRuang[i] = it.getString(i)
+        }
+      },
+      {
+        Log.e("VOLLEY", it.toString())
+        Toasty.error(this@MainActivity, "Fail to get response = $it", Toast.LENGTH_LONG).show()
+      }
+    )
+    return request
+  }
+
 
   /** Testing Stuff */
   // Get device MAC Address
@@ -696,7 +725,6 @@ private fun requestPost(url: String, parameters: MutableMap<String, String>): St
         } catch (e: JSONException){
           e.printStackTrace()
         }},
-      // https://stackoverflow.com/questions/45940861/android-8-cleartext-http-traffic-not-permitted
       Response.ErrorListener {
         Toasty.error(this, "Fail to get response = $it", Toast.LENGTH_SHORT).show()
       }){
@@ -706,6 +734,33 @@ private fun requestPost(url: String, parameters: MutableMap<String, String>): St
     }
     return request
   }
+
+  private fun requestPostRuangID(url: String, parameters: MutableMap<String, String>): JsonArrayRequest {
+    val request = object : JsonArrayRequest(
+      Method.POST,
+      url,
+      null,
+      Response.Listener {
+        Log.e("POSTRUANGID", it.toString())
+
+        try{
+//          Toasty.info(this, "RuangID $it is selected", Toast.LENGTH_LONG).show()
+          ruangID = it.toString()
+
+        } catch (e: JSONException){
+          e.printStackTrace()
+        }},
+
+      Response.ErrorListener {
+        Toasty.error(this, "Fail to get response = $it", Toast.LENGTH_SHORT).show()
+      }){
+      override fun getParams(): MutableMap<String, String>? {
+        return parameters
+      }
+    }
+    return request
+  }
+
 
   private fun getID(nama: String){
     val url = "https://c31.website/getID.php"

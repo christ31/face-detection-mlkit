@@ -7,6 +7,7 @@ import android.graphics.Rect
 import android.os.Build
 import android.os.Handler
 import android.os.Looper
+import android.provider.Settings
 import android.text.TextUtils
 import android.util.Log
 import android.util.Size
@@ -234,7 +235,7 @@ class TFModel(val context: Context,
     val parameters: MutableMap<String, String> = HashMap()
     parameters["idP"] = id.toString()
     parameters["statusP"] = status
-    parameters["noHpP"] = getDeviceName().toString()
+    parameters["noHpP"] = getSecureAndroidID()
 
     Log.e("UpdateToDB", "parameters = $id dan $status")
 
@@ -254,6 +255,16 @@ class TFModel(val context: Context,
     val request = requestPost(url, parameters)
 
     queue.add(request)
+  }
+
+  fun getSecureAndroidID(): String {
+    val stringAndroidID: String = Settings.Secure.getString(
+      context.contentResolver,
+      Settings.Secure.ANDROID_ID
+    )
+
+    Log.e("ANDROIDID", stringAndroidID)
+    return stringAndroidID
   }
 
   private fun getID(nama: String){

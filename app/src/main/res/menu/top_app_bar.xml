@@ -17,7 +17,7 @@
         android:icon="@drawable/ic_baseline_admin_panel_settings_24"
         android:title="Admin Settings"
         android:contentDescription="Buka panel admin"
-        android:visible="false"
+        android:visible="true"
         app:showAsAction="ifRoom" />
 
     <item
