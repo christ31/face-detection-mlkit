@@ -1,5 +1,20 @@
 # face-detection-mlkit-tfLite-facenet
+Aplikasi Android Face detection menggunakan [Facenet](https://ieeexplore.ieee.org/document/7298682), dan diimplementasikan dengan TensorFlow Lite.
+FaceNet merupakan teknologi pengenalan wajah dari Google menggunakan metode Deeplearning CNN yang dilatih dengan fungsi triplet loss yang membuat vektor dengan identitas yang sama menjadi semakin serupa (jarak semakin kecil), sedangkan vektor dengan identitas yang berbeda menjadi semakin tidak serupa (jarak semakin jauh).
 
+FaceNet yang digunakan adalah implementasi FaceNet di TensorFlow dari [David Sandberg](https://github.com/davidsandberg/facenet), dan dikonversikan ke TensorFlow Lite oleh [Esteban Uri](https://medium.com/@estebanuri/converting-sandbergs-facenet-pre-trained-model-to-tensorflow-lite-using-an-unorthodox-way-7ee3a6ed02a3). Dataset yang digunakan oleh David Sandberg untuk dikonversikan ke TensorFlow Lite adalah dataset VGGFace2.
+
+## Cara Kerja FaceDetection
+1. Registrasi Wajah
+2. Pengenalan wajah dengan FaceNet
+3. Simpan hasil pola wajah unik (128 Dimensi Vektor) dan nama di database
+4. Scan wajah baru
+5. Lakukan pengenalan wajah dengan FaceNet
+6. Hasil dari pengenalan wajah dilakukan komparasi dengan seluruh entry di database
+7. Lakukan perhitungan kemiripan dengan mencari jarak dari kedua nilai tersebut (Menggunakan rumus L2Norm)
+8. Ambil kandidat dengan kemiripan tertinggi (jarak terdekat)
+ 
+## Notes
 [Self note] Source used to create this project:
 - https://www.tensorflow.org/lite/android/quickstart
 - https://developer.android.com/reference/android/provider/MediaStore.MediaColumns#RELATIVE_PATH
