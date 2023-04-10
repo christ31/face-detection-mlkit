@@ -13,7 +13,12 @@ FaceNet yang digunakan adalah implementasi FaceNet di TensorFlow dari [David San
 6. Hasil dari pengenalan wajah dilakukan komparasi dengan seluruh entry di database
 7. Lakukan perhitungan kemiripan dengan mencari jarak dari kedua nilai tersebut (Menggunakan rumus L2Norm)
 8. Ambil kandidat dengan kemiripan tertinggi (jarak terdekat)
- 
+
+## Library yang dipakai
+1. ML Kit
+2. TensorFlow Lite
+3. Volley
+
 ## Notes
 [Self note] Source used to create this project:
 - https://www.tensorflow.org/lite/android/quickstart
